@@ -83,3 +83,20 @@ def get_avg_wind_speeds(points, year=2023):
         speeds[(lat, lon)] = round(float(val), 2) if val is not None else None
 
     return speeds
+
+def get_dem_layers():
+    """Return elevation (m), slope (deg), and TRI-like ruggedness (stddev of 3x3 neighborhood)."""
+    # Mosaic DEM tiles and select the elevation band
+    dem = ee.ImageCollection("COPERNICUS/DEM/GLO30").mosaic().select("DEM").rename("elevation")
+
+    # Slope in degrees
+    slope = ee.Terrain.slope(dem).rename("slope")
+
+    # TRI-like ruggedness: std dev of elevation in a 3x3 pixel window
+    kernel = ee.Kernel.square(radius=1, units='pixels')  # 3x3 neighborhood
+    tri = dem.reduceNeighborhood(
+        reducer=ee.Reducer.stdDev(),
+        kernel=kernel
+    ).rename("tri")
+
+    return dem.addBands([slope, tri])
