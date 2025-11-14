@@ -1,4 +1,4 @@
-# 🌬️ Satelite Wind ROSPIN
+#  Satelite Wind ROSPIN
 
 ## 🧭 Description
 
@@ -167,7 +167,7 @@ git push origin branch-name
 ```
 ### 9️⃣ If it's a new branch (first push)
 ```bash
-git push --set-upstream origin new-branch-name
+git push -u origin new-branch-name
 ```
 ### 🔁 Update local project with latest code (daily use)
 ```bash
