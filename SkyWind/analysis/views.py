@@ -39,6 +39,7 @@ from .models import Region, Zone
 
 def zones_geojson_detailed(request, region_id=1):
     """
+    
     Generate GeoJSON for all zones of a region directly from DB.
     Build geometry from the zone's corner points A, B, C, D.
     """
