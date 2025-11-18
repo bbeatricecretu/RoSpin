@@ -34,36 +34,56 @@ from django.conf import settings
 from django.http import JsonResponse, HttpResponseNotFound
 from .models import Zone, Region
 
+from django.http import JsonResponse
+from .models import Region, Zone
+
 def zones_geojson_detailed(request, region_id=1):
     """
-    Încărcăm region_zones.geojson, apoi pentru fiecare feature (grid cell)
-    completăm proprietăți din DB: de ex. avg_temperature, avg_wind_speed etc.
-    Presupunem că feature.properties.id == Zone.zone_index în DB.
+    Generate GeoJSON for all zones of a region directly from DB.
+    Build geometry from the zone's corner points A, B, C, D.
     """
-    geo_path = Path(settings.BASE_DIR) / "region_zones.geojson"
-    if not geo_path.exists():
-        return HttpResponseNotFound("region_zones.geojson not found")
 
-    data = json.loads(geo_path.read_text())
+    try:
+        region = Region.objects.get(pk=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
 
-    # cache zonelor din DB într-un dict pentru lookup rapid
-    zones = {}
-    for z in Zone.objects.filter(region_id=region_id):
-        zones[z.zone_index] = {
-            "avg_temperature": getattr(z, "avg_temperature", None),
-            "avg_wind_speed": getattr(z, "avg_wind_speed", None),
-            "infrastructure_count": getattr(z, "infrastructure_count", None),  # dacă aveți așa ceva
-            # adaugă aici alte câmpuri utile din modelul vostru
-        }
+    zones = Zone.objects.filter(region=region)
 
-    # atașează proprietăți la fiecare feature din geojson (doar dacă e poligon)
-    for f in data.get("features", []):
-        if f.get("geometry", {}).get("type") != "Polygon":
-            continue
-        fid = f.get("properties", {}).get("id") or f.get("id")
-        det = zones.get(fid, {})
-        # adaugăm/actualizăm properties
-        props = f.setdefault("properties", {})
-        props.update(det)
+    features = []
 
-    return JsonResponse(data, safe=False)
+    for z in zones:
+        # Build polygon coordinates from A, B, C, D points
+        polygon_coords = [[
+            [z.A.lon, z.A.lat],
+            [z.B.lon, z.B.lat],
+            [z.C.lon, z.C.lat],
+            [z.D.lon, z.D.lat],
+            [z.A.lon, z.A.lat],  # close polygon
+        ]]
+
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "id": z.id,
+                "zone_index": z.zone_index,
+                "avg_wind_speed": z.avg_wind_speed,
+                "min_alt": z.min_alt,
+                "max_alt": z.max_alt,
+                "roughness": z.roughness,
+                "air_density": z.air_density,
+                "power_avg": z.power_avg,
+                "land_type": z.land_type,
+                "potential": z.potential,
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": polygon_coords
+            }
+        })
+
+    return JsonResponse({
+        "type": "FeatureCollection",
+        "features": features
+    })
+
