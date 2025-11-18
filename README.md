@@ -44,7 +44,7 @@ When the user selects one of the locations, an **interactive map** will open, an
 3. **Copernicus Browser** — Source for land surface and terrain data visualization and downloads.  
    🗺 [https://browser.dataspace.copernicus.eu/](https://browser.dataspace.copernicus.eu/)
 
-4. **Copernicus Climate Data Store (CDS)** — API and datasets for wind direction and wind speed (ERA5, etc.).  
+4. **Copernicus Climate Data Store (CDS)** — API and datasets for wind direction and wind speed (ERA5, etc. ).  
    🌬 [https://cds.climate.copernicus.eu/api-how-to](https://cds.climate.copernicus.eu/api-how-to)
 
 ### 🧾 **Note**
