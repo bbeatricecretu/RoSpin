@@ -18,17 +18,28 @@ class Command(BaseCommand):
             region_entity.generate_corners(side_km=20.0)
             region_entity.generate_grid(n=5)
 
+            A, _ = Point.objects.get_or_create(lat=region_entity.A.lat, lon=region_entity.A.lon)
+            B, _ = Point.objects.get_or_create(lat=region_entity.B.lat, lon=region_entity.B.lon)
+            C, _ = Point.objects.get_or_create(lat=region_entity.C.lat, lon=region_entity.C.lon)
+            D, _ = Point.objects.get_or_create(lat=region_entity.D.lat, lon=region_entity.D.lon)
+
+            region_db.A = A
+            region_db.B = B
+            region_db.C = C
+            region_db.D = D
+            region_db.save()
+
             # 2️⃣ Iterate through generated zones and save them as ORM objects
             count = 0
             index = 1
             for row in region_entity.zones:
                 for z in row:
-                    A = Point.objects.create(lat=z.A.lat, lon=z.A.lon)
-                    B = Point.objects.create(lat=z.B.lat, lon=z.B.lon)
-                    C = Point.objects.create(lat=z.C.lat, lon=z.C.lon)
-                    D = Point.objects.create(lat=z.D.lat, lon=z.D.lon)
+                    A, _ = Point.objects.get_or_create(lat=z.A.lat, lon=z.A.lon)
+                    B, _ = Point.objects.get_or_create(lat=z.B.lat, lon=z.B.lon)
+                    C, _ = Point.objects.get_or_create(lat=z.C.lat, lon=z.C.lon)
+                    D, _ = Point.objects.get_or_create(lat=z.D.lat, lon=z.D.lon)
 
-                    Zone.objects.create(
+                    Zone.objects.get_or_create(
                         region=region_db,
                         A=A, B=B, C=C, D=D,
                         infrastructure=infra,
@@ -36,5 +47,5 @@ class Command(BaseCommand):
                     )
                     count += 1
                     index += 1
-
+            region_db.compute_from_zones()
             self.stdout.write(self.style.SUCCESS(f"✅ Generated and saved {count} zones for region {region_db.id}"))

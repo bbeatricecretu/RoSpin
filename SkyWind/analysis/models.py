@@ -6,6 +6,11 @@ class Point(models.Model):
     lat = models.FloatField()
     lon = models.FloatField()
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["lat", "lon"], name="unique_lat_lon")
+        ]
+
     def __str__(self):
         return f"({self.lat:.4f}, {self.lon:.4f})"
 
@@ -54,8 +59,30 @@ class Region(models.Model):
     infrastructure_rating = models.IntegerField(default=0)
     index_average = models.FloatField(default=0.0)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["center"], name="unique_region_center")
+        ]
+
     def __str__(self):
         return f"Region @ {self.center}"
+
+    def compute_from_zones(self):
+        zones = list(self.zones.all())
+        if not zones:
+            return
+
+        self.avg_potential = sum(z.potential for z in zones) / len(zones)
+
+        self.max_potential = max(zones, key=lambda z: z.potential)
+
+        self.infrastructure_rating = sum(z.infrastructure.index for z in zones) / len(zones)
+
+        self.index_average = sum(z.zone_index for z in zones) / len(zones)
+
+        self.rating = int(self.avg_potential * 10)
+
+        self.save()
 
 
 class Zone(models.Model):
@@ -80,4 +107,4 @@ class Zone(models.Model):
     infrastructure = models.ForeignKey(Infrastructure, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"Zone of Region {self.region.id}"
+        return f"Region {self.region.id} - Zone {self.zone_index}"
