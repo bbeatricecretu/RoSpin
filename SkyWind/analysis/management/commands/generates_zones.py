@@ -48,4 +48,4 @@ class Command(BaseCommand):
                     count += 1
                     index += 1
             region_db.compute_from_zones()
-            self.stdout.write(self.style.SUCCESS(f"✅ Generated and saved {count} zones for region {region_db.id}"))
+            self.stdout.write(self.style.SUCCESS(f"✅ Generated and   saved {count} zones for region {region_db.id}"))

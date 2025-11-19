@@ -3,3 +3,4 @@ earthengine-api
 geemap
 psycopg2-binary
 django-cors-headers
+requests
