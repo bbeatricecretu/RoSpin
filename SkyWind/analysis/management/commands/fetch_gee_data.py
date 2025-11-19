@@ -1,82 +1,87 @@
 from django.core.management.base import BaseCommand
-from analysis.models import *
+from analysis.models import Region, RegionGrid, Zone
 from analysis.core.gee_data import *
+import ee
 
 
 class Command(BaseCommand):
-    help = "Fetches GEE temperature and wind data for all regions and zones (optimized batch version)."
+    help = "Fetch GEE temperature, wind, DEM, air density, land type, and compute potential for all RegionGrids."
 
     def handle(self, *args, **options):
-        regions = Region.objects.all()
-        if not regions.exists():
-            self.stdout.write(self.style.WARNING("No regions found in database."))
+
+        grids = RegionGrid.objects.all()
+        if not grids.exists():
+            self.stdout.write(self.style.WARNING("No RegionGrid objects found."))
             return
 
-        for region in regions:
-            self.stdout.write(
-                self.style.NOTICE(f"\n🌍 Processing region centered at ({region.center.lat}, {region.center.lon})...")
-            )
+        for grid in grids:
+            region = grid.region
+            self.stdout.write(self.style.NOTICE(
+                f"\n🌍 Processing RegionGrid {grid.id} (Region {region.id}, {grid.zones_per_edge}x{grid.zones_per_edge})"
+            ))
 
-            # ---------- Step 1: Temperature for region center ---------- 
+            # ---------------------------------------------------------
+            # STEP 1 — Region center temperature
+            # ---------------------------------------------------------
             try:
                 temp = get_avg_temperature(region.center.lat, region.center.lon)
                 region.avg_temperature = temp
                 region.save()
-                self.stdout.write(self.style.SUCCESS(f"🌡️  Avg temperature: {temp} °C"))
+                self.stdout.write(self.style.SUCCESS(f"🌡 Avg temperature: {temp:.2f} °C"))
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Failed to fetch temperature: {e}"))
+                self.stdout.write(self.style.ERROR(f"❌ Temperature fetch failed: {e}"))
                 continue
 
-            # ---------- Step 2: Wind speeds for zones (batched) ---------- 
-            zones = list(region.zones.all())
+            # ---------------------------------------------------------
+            # STEP 2 — Wind speeds for zones
+            # ---------------------------------------------------------
+            zones = list(grid.zones.all())
+
             if not zones:
-                self.stdout.write(self.style.WARNING("No zones found for this region. Skipping wind computation."))
+                self.stdout.write(self.style.WARNING("⚠ No zones found for this RegionGrid. Skipping wind."))
                 continue
 
-            # Compute approximate center (lat, lon) for each zone
-            points = [
+            centers = [
                 (
                     (z.A.lat + z.B.lat + z.C.lat + z.D.lat) / 4,
                     (z.A.lon + z.B.lon + z.C.lon + z.D.lon) / 4
-                )
-                for z in zones
+                ) for z in zones
             ]
 
             try:
-                wind_dict = get_avg_wind_speeds(points)
+                wind_dict = get_avg_wind_speeds(centers)
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Error fetching wind data: {e}"))
+                self.stdout.write(self.style.ERROR(f"❌ Wind speed fetch error: {e}"))
                 continue
 
-            # Update each zone with fetched value
-            for zone, (lat, lon) in zip(zones, points):
+            for zone, (lat, lon) in zip(zones, centers):
                 ws = wind_dict.get((lat, lon))
                 if ws is not None:
                     zone.avg_wind_speed = ws
                     zone.save()
 
-            self.stdout.write(
-                self.style.SUCCESS(f"💨 Updated wind data for {len(zones)} zones.")
-            )
-            # ---------- STEP 3: DEM (elevation, slope, TRI) extraction ----------
+            self.stdout.write(self.style.SUCCESS(f"💨 Updated wind data for {len(zones)} zones."))
+
+            # ---------------------------------------------------------
+            # STEP 3 — DEM extraction
+            # ---------------------------------------------------------
             try:
-                self.stdout.write(self.style.NOTICE("🗺  Extracting DEM metrics (elevation, slope, tri)..."))
+                self.stdout.write(self.style.NOTICE("🗺 Extracting DEM metrics..."))
 
                 dem_image = get_dem_layers()
 
-                # map zone.id -> zone object for quick lookup
                 zone_by_id = {z.id: z for z in zones}
 
                 features = []
                 for z in zones:
-                    coords = [
+                    poly = [
                         [z.A.lon, z.A.lat],
                         [z.B.lon, z.B.lat],
                         [z.C.lon, z.C.lat],
                         [z.D.lon, z.D.lat],
-                        [z.A.lon, z.A.lat],  # close polygon
+                        [z.A.lon, z.A.lat],
                     ]
-                    geom = ee.Geometry.Polygon([coords])
+                    geom = ee.Geometry.Polygon([poly])
                     features.append(ee.Feature(geom, {"zone_id": z.id}))
 
                 zones_fc = ee.FeatureCollection(features)
@@ -95,36 +100,30 @@ class Command(BaseCommand):
 
                 for feat in results["features"]:
                     props = feat["properties"]
-                    zid = props.get("zone_id")
-                    if zid is None:
-                        continue
+                    z_id = props.get("zone_id")
+                    z = zone_by_id.get(int(z_id))
 
-                    zone = zone_by_id.get(int(zid))
-                    if zone is None:
-                        continue
+                    if z:
+                        if props.get("elevation_min") is not None:
+                            z.min_alt = round(float(props["elevation_min"]), 2)
+                        if props.get("elevation_max") is not None:
+                            z.max_alt = round(float(props["elevation_max"]), 2)
+                        tri_std = props.get("tri_stdDev") or props.get("tri_mean")
+                        if tri_std is not None:
+                            z.roughness = round(float(tri_std), 2)
+                        z.save()
 
-                    elev_min = props.get("elevation_min")
-                    elev_max = props.get("elevation_max")
-                    tri_std = props.get("tri_stdDev") or props.get("tri_mean")
-
-                    if elev_min is not None:
-                        zone.min_alt = round(float(elev_min), 2)
-                    if elev_max is not None:
-                        zone.max_alt = round(float(elev_max), 2)
-                    if tri_std is not None:
-                        zone.roughness = round(float(tri_std), 2)
-
-                    zone.save()
-
-                self.stdout.write(self.style.SUCCESS("✅ DEM metrics updated successfully."))
+                self.stdout.write(self.style.SUCCESS("✅ DEM metrics updated."))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Failed DEM extraction: {e}"))
+                self.stdout.write(self.style.ERROR(f"❌ DEM extraction failed: {e}"))
 
-
-            # ---------- STEP 4: Air density (kg/m³) ----------
+            # ---------------------------------------------------------
+            # STEP 4 — Air density
+            # ---------------------------------------------------------
             try:
-                self.stdout.write(self.style.NOTICE("🌫  Computing air density..."))
+                self.stdout.write(self.style.NOTICE("🌫 Fetching air density..."))
+
                 air_img = get_air_density_image(year=2023)
                 air_res = air_img.reduceRegions(
                     collection=zones_fc,
@@ -135,26 +134,22 @@ class Command(BaseCommand):
                 for feat in air_res["features"]:
                     props = feat["properties"]
                     zid = props.get("zone_id")
-                    val = props.get("mean")  # Earth Engine used 'mean' as key
+                    z = zone_by_id.get(int(zid))
+                    if z and props.get("mean") is not None:
+                        z.air_density = round(float(props["mean"]), 3)
+                        z.save()
 
-                    if zid is None or val is None:
-                        continue
+                self.stdout.write(self.style.SUCCESS("💨 Air density updated."))
 
-                    zone = zone_by_id.get(int(zid))
-                    if zone is None:
-                        continue
-
-                    zone.air_density = round(float(val), 3)
-                    zone.save()
-
-                self.stdout.write(self.style.SUCCESS("✅ Air density updated."))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"❌ Air density failed: {e}"))
 
-
-            # ---------- STEP 5: Wind power density (W/m²) ----------
+            # ---------------------------------------------------------
+            # STEP 5 — Wind power density
+            # ---------------------------------------------------------
             try:
-                self.stdout.write(self.style.NOTICE("⚡ Computing mean wind power density..."))
+                self.stdout.write(self.style.NOTICE("⚡ Fetching wind power density..."))
+
                 wpd_img = get_wind_power_density_image(year=2023)
                 wpd_res = wpd_img.reduceRegions(
                     collection=zones_fc,
@@ -165,26 +160,22 @@ class Command(BaseCommand):
                 for feat in wpd_res["features"]:
                     props = feat["properties"]
                     zid = props.get("zone_id")
-                    val = props.get("mean")  # again, 'mean' is the key
+                    z = zone_by_id.get(int(zid))
+                    if z and props.get("mean") is not None:
+                        z.power_avg = round(float(props["mean"]), 1)
+                        z.save()
 
-                    if zid is None or val is None:
-                        continue
+                self.stdout.write(self.style.SUCCESS("⚡ Wind power density updated."))
 
-                    zone = zone_by_id.get(int(zid))
-                    if zone is None:
-                        continue
-
-                    zone.power_avg = round(float(val), 1)
-                    zone.save()
-
-                self.stdout.write(self.style.SUCCESS("✅ Power density updated."))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"❌ Power density failed: {e}"))
 
-
-            # ---------- STEP 6: Dominant land type (mode) ----------
+            # ---------------------------------------------------------
+            # STEP 6 — Land type
+            # ---------------------------------------------------------
             try:
-                self.stdout.write(self.style.NOTICE("🗺  Classifying dominant land type..."))
+                self.stdout.write(self.style.NOTICE("🗺 Determining land cover..."))
+
                 lc_img = get_landcover_image(year=2021)
                 lc_res = lc_img.reduceRegions(
                     collection=zones_fc,
@@ -196,46 +187,51 @@ class Command(BaseCommand):
                     props = feat["properties"]
                     zid = props.get("zone_id")
                     clz = props.get("mode")
+                    z = zone_by_id.get(int(zid))
+                    if z and clz is not None:
+                        label = WORLD_COVER_CLASSES.get(int(round(clz)))
+                        if label:
+                            z.land_type = label
+                            z.save()
 
-                    if zid is None or clz is None:
-                        continue
+                self.stdout.write(self.style.SUCCESS("🏞 Land type updated."))
 
-                    zone = zone_by_id.get(int(zid))
-                    if zone is None:
-                        continue
-
-                    label = WORLD_COVER_CLASSES.get(int(round(clz)))
-                    if label:
-                        zone.land_type = label
-                        zone.save()
-
-                self.stdout.write(self.style.SUCCESS("✅ Land type updated."))
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Land type failed: {e}"))
+                self.stdout.write(self.style.ERROR(f"❌ Landcover failed: {e}"))
 
-
-            # ---------- STEP 7: Potential (simple, explainable score) ----------
+            # ---------------------------------------------------------
+            # STEP 7 — Potential
+            # ---------------------------------------------------------
             try:
-                self.stdout.write(self.style.NOTICE("📈 Computing zone potential..."))
+                self.stdout.write(self.style.NOTICE("📈 Scoring potential..."))
+
                 EXCLUDED = {"Built-up", "Permanent water", "Herbaceous wetland", "Snow / ice", "Mangroves"}
 
-                def score_zone(z: Zone) -> float:
-                    wpd = max(0.0, min(1000.0, z.power_avg))
-                    wpd_score = wpd / 800.0
-                    rough = max(0.0, min(50.0, float(z.roughness)))
-                    rough_score = 1.0 - (rough / 50.0)
-                    land_penalty = 0.0 if z.land_type in EXCLUDED else 1.0
-                    base = 0.7 * wpd_score + 0.3 * rough_score
-                    return round(100.0 * base * land_penalty, 1)
+                def score_zone(z: Zone):
+                    wpd = max(0, min(1000, z.power_avg))
+                    wpd_score = wpd / 800
+                    rough_score = 1 - max(0, min(50, z.roughness)) / 50
+                    land_penalty = 0 if z.land_type in EXCLUDED else 1
+                    return round(100 * (0.7 * wpd_score + 0.3 * rough_score) * land_penalty, 1)
 
                 for z in zones:
                     z.potential = score_zone(z)
                     z.save()
 
-                self.stdout.write(self.style.SUCCESS("✅ Potential score updated."))
+                self.stdout.write(self.style.SUCCESS("📊 Potential updated."))
+
+                # ---------- FINAL STEP: Update Region stats ----------
+                try:
+                    self.stdout.write(self.style.NOTICE("📘 Updating region metrics..."))
+                    region.compute_from_zones(grid)
+                    self.stdout.write(self.style.SUCCESS(
+                        f"🏁 Region metrics updated using RegionGrid {grid.id}"
+                    ))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"❌ Failed to update region metrics: {e}"))
+
+
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Potential scoring failed: {e}"))
+                    self.stdout.write(self.style.ERROR(f"❌ Potential scoring failed: {e}"))
 
-
-
-        self.stdout.write(self.style.SUCCESS("\n✅ All regions processed successfully."))
+        self.stdout.write(self.style.SUCCESS("\n🎉 All RegionGrids processed successfully."))

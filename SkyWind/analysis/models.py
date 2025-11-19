@@ -67,8 +67,17 @@ class Region(models.Model):
     def __str__(self):
         return f"Region @ {self.center}"
 
-    def compute_from_zones(self):
-        zones = list(self.zones.all())
+    def compute_from_zones(self, grid=None):
+        """
+        Compute region-level metrics from zones.
+        If no grid is given, use the grid with the highest resolution.
+        """
+        if grid is None:
+            grid = self.grids.order_by('-zones_per_edge').first()
+            if grid is None:
+                return
+
+        zones = list(grid.zones.all())
         if not zones:
             return
 
@@ -85,9 +94,31 @@ class Region(models.Model):
         self.save()
 
 
+class RegionGrid(models.Model):
+    """
+    One specific grid configuration for a Region:
+    - same physical region
+    - but a particular side length and number of zones per edge.
+    """
+    region = models.ForeignKey(Region, on_delete=models.CASCADE, related_name="grids")
+    side_km = models.FloatField()
+    zones_per_edge = models.IntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["region", "side_km", "zones_per_edge"],
+                name="unique_region_grid_config"
+            )
+        ]
+
+    def __str__(self):
+        return f"Grid for Region {self.region.id} ({self.zones_per_edge}x{self.zones_per_edge}, {self.side_km}km)"
+
+
 class Zone(models.Model):
     """Sub-zone inside a Region, with wind and terrain data."""
-    region = models.ForeignKey(Region, on_delete=models.CASCADE, related_name="zones")
+    grid = models.ForeignKey('RegionGrid', on_delete=models.CASCADE, related_name="zones")
 
     A = models.OneToOneField(Point, on_delete=models.CASCADE, related_name="zone_A")
     B = models.OneToOneField(Point, on_delete=models.CASCADE, related_name="zone_B")
@@ -107,4 +138,4 @@ class Zone(models.Model):
     infrastructure = models.ForeignKey(Infrastructure, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"Region {self.region.id} - Zone {self.zone_index}"
+        return f"Region {self.grid.region.id} - Grid {self.grid.id} - Zone {self.zone_index}"
