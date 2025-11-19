@@ -49,7 +49,7 @@ def zones_geojson_detailed(request, region_id=1):
     except Region.DoesNotExist:
         return JsonResponse({"error": "Region not found"}, status=404)
 
-    zones = Zone.objects.filter(region=region)
+    zones = Zone.objects.filter(grid__region=region)
 
     features = []
 

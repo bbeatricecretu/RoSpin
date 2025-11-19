@@ -98,11 +98,12 @@ class Command(BaseCommand):
                             max_alt=existing.max_alt,
                             roughness=existing.roughness,
                             air_density=existing.air_density,
-                            avg_wind_speed=existing.avg_wind_speed,
-                            power_avg=existing.power_avg,
-                            land_type=existing.land_type,
-                            potential=existing.potential,
+                            avg_wind_speed=existing.avg_wind_speed or 0.0,
+                            power_avg=existing.power_avg or 0.0,
+                            land_type=existing.land_type or "",
+                            potential=existing.potential or 0.0,
                         )
+
                     else:
                         Zone.objects.create(
                             grid=grid,
