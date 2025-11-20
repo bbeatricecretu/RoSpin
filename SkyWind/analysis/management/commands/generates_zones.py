@@ -1,120 +1,155 @@
+"""
+generate_zones.py
+-----------------
+
+This management command generates all zones for each RegionGrid.
+
+Responsibilities:
+    • Compute region corners based on center + side_km
+    • Generate n×n zone polygons
+    • Create Point + Zone objects in DB
+    • Update Region corners
+    • Reuse Infrastructure records
+
+Requires:
+    analysis.core.geometry
+    analysis.models
+"""
+
 from django.core.management.base import BaseCommand
 from analysis.models import RegionGrid, Zone, Point, Infrastructure
-from analysis.core.entities import Region as RegionEntity, Point as PointEntity
+from analysis.core.geometry import compute_region_corners, generate_zone_grid
 
 
 class Command(BaseCommand):
-    help = "Generate zones for each RegionGrid based on the grid configuration stored in the database."
+    help = "Generate zones for each RegionGrid based on region center and grid settings."
 
     def handle(self, *args, **options):
 
         infra, _ = Infrastructure.objects.get_or_create(index=1)
 
-        # LOOP REGION GRIDS — NOT REGION
         for grid in RegionGrid.objects.all():
-            region_db = grid.region
 
-            self.stdout.write(f"▶ Generating zones for RegionGrid {grid.id}: "
-                              f"Region {region_db.id}, side {grid.side_km} km, {grid.zones_per_edge}x{grid.zones_per_edge}")
+            region = grid.region
 
-            # If zones already exist → skip
-            if grid.zones.exists():
-                self.stdout.write(self.style.WARNING(
-                    f"⚠ Grid {grid.id} already has zones. Skipping."
-                ))
-                # RECOMPUTE CORNERS – because grid does NOT store A/B/C/D
-                region_db = grid.region
-
-                region_entity = RegionEntity(
-                    center=PointEntity(region_db.center.lat, region_db.center.lon)
-                )
-
-                region_entity.generate_corners(grid.side_km)
-
-                A, _ = Point.objects.get_or_create(lat=region_entity.A.lat, lon=region_entity.A.lon)
-                B, _ = Point.objects.get_or_create(lat=region_entity.B.lat, lon=region_entity.B.lon)
-                C, _ = Point.objects.get_or_create(lat=region_entity.C.lat, lon=region_entity.C.lon)
-                D, _ = Point.objects.get_or_create(lat=region_entity.D.lat, lon=region_entity.D.lon)
-
-                # update region
-                region_db.A = A
-                region_db.B = B
-                region_db.C = C
-                region_db.D = D
-                region_db.save()
-                continue
-
-            # Build RegionEntity using DB values
-            region_entity = RegionEntity(
-                center=PointEntity(region_db.center.lat, region_db.center.lon)
+            self.stdout.write(
+                f"▶ Generating zones for RegionGrid {grid.id}: "
+                f"Region {region.id}, side {grid.side_km} km, "
+                f"{grid.zones_per_edge}×{grid.zones_per_edge}"
             )
 
-            # USE VALUES FROM DB
-            region_entity.generate_corners(grid.side_km)
-            region_entity.generate_grid(grid.zones_per_edge)
+            # If grid already has zones → skip zone creation but recompute corners
+            if grid.zones.exists():
+                self.stdout.write(self.style.WARNING(
+                    f"⚠ Grid {grid.id} already has zones. Updating corners only."
+                ))
+                self.update_region_corners(region, grid)
+                continue
 
-            # Save corners
-            A, _ = Point.objects.get_or_create(lat=region_entity.A.lat, lon=region_entity.A.lon)
-            B, _ = Point.objects.get_or_create(lat=region_entity.B.lat, lon=region_entity.B.lon)
-            C, _ = Point.objects.get_or_create(lat=region_entity.C.lat, lon=region_entity.C.lon)
-            D, _ = Point.objects.get_or_create(lat=region_entity.D.lat, lon=region_entity.D.lon)
+            # -------------------------------------------------------------
+            # STEP 1 — Compute region corners
+            # -------------------------------------------------------------
+            corners = compute_region_corners(
+                center_lat=region.center.lat,
+                center_lon=region.center.lon,
+                side_km=grid.side_km
+            )
 
-            grid.A = A
-            grid.B = B
-            grid.C = C
-            grid.D = D
-            grid.save()
+            # Save corners as Point objects
+            A = self.get_point(*corners["A"])
+            B = self.get_point(*corners["B"])
+            C = self.get_point(*corners["C"])
+            D = self.get_point(*corners["D"])
 
-            # Also update the parent Region corners
-            region = grid.region
+            # Update Region
             region.A = A
             region.B = B
             region.C = C
             region.D = D
             region.save()
 
-            # Generate zones
+            # Update RegionGrid (optional, only if you want)
+            grid.A = A
+            grid.B = B
+            grid.C = C
+            grid.D = D
+            grid.save()
+
+            # -------------------------------------------------------------
+            # STEP 2 — Generate zone grid (pure geometry)
+            # -------------------------------------------------------------
+            zone_grid = generate_zone_grid(
+                A=(A.lat, A.lon),
+                B=(B.lat, B.lon),
+                C=(C.lat, C.lon),
+                D=(D.lat, D.lon),
+                n=grid.zones_per_edge
+            )
+
+            # -------------------------------------------------------------
+            # STEP 3 — Create Zone records
+            # -------------------------------------------------------------
             count = 0
-            index = 1
+            zone_index = 1
 
-            for row in region_entity.zones:
-                for z in row:
-                    # Create points
-                    A, _ = Point.objects.get_or_create(lat=z.A.lat, lon=z.A.lon)
-                    B, _ = Point.objects.get_or_create(lat=z.B.lat, lon=z.B.lon)
-                    C, _ = Point.objects.get_or_create(lat=z.C.lat, lon=z.C.lon)
-                    D, _ = Point.objects.get_or_create(lat=z.D.lat, lon=z.D.lon)
+            for row in zone_grid:
+                for cell in row:
 
-                    # Reuse existing zones (cache)
-                    existing = Zone.objects.filter(A=A, B=B, C=C, D=D).first()
+                    A_z = self.get_point(*cell["A"])
+                    B_z = self.get_point(*cell["B"])
+                    C_z = self.get_point(*cell["C"])
+                    D_z = self.get_point(*cell["D"])
 
-                    if existing:
-                        Zone.objects.create(
-                            grid=grid,
-                            A=A, B=B, C=C, D=D,
-                            infrastructure=infra,
-                            zone_index=index,
-                            min_alt=existing.min_alt,
-                            max_alt=existing.max_alt,
-                            roughness=existing.roughness,
-                            air_density=existing.air_density,
-                            avg_wind_speed=existing.avg_wind_speed or 0.0,
-                            power_avg=existing.power_avg or 0.0,
-                            land_type=existing.land_type or "",
-                            potential=existing.potential or 0.0,
-                        )
+                    Zone.objects.create(
+                        grid=grid,
+                        A=A_z,
+                        B=B_z,
+                        C=C_z,
+                        D=D_z,
+                        infrastructure=infra,
+                        zone_index=zone_index
+                    )
 
-                    else:
-                        Zone.objects.create(
-                            grid=grid,
-                            A=A, B=B, C=C, D=D,
-                            infrastructure=infra,
-                            zone_index=index
-                        )
-
-                    index += 1
+                    zone_index += 1
                     count += 1
 
             self.stdout.write(self.style.SUCCESS(
                 f"✔ Created {count} zones for RegionGrid {grid.id}"
             ))
+
+
+    # ---------------------------------------------------------------------
+    # HELPERS
+    # ---------------------------------------------------------------------
+
+    def get_point(self, lat, lon):
+        """Get or create a Point with (lat, lon)."""
+        p, _ = Point.objects.get_or_create(lat=lat, lon=lon)
+        return p
+
+    def update_region_corners(self, region, grid):
+        """
+        If zones already exist, still recompute region corners from center.
+        This ensures region corner points are always correct.
+        """
+
+        corners = compute_region_corners(
+            center_lat=region.center.lat,
+            center_lon=region.center.lon,
+            side_km=grid.side_km
+        )
+
+        A = self.get_point(*corners["A"])
+        B = self.get_point(*corners["B"])
+        C = self.get_point(*corners["C"])
+        D = self.get_point(*corners["D"])
+
+        region.A = A
+        region.B = B
+        region.C = C
+        region.D = D
+        region.save()
+
+        self.stdout.write(self.style.SUCCESS(
+            f"✔ Updated region corners for Region {region.id}"
+        ))
