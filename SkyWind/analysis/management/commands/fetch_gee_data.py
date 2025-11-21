@@ -211,23 +211,45 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.NOTICE("🏞 Land cover..."))
 
                 img = get_landcover_image()
-                res = img.reduceRegions(
+
+                # We use frequency histogram instead of mode
+                lc_res = img.reduceRegions(
                     collection=fc,
-                    reducer=ee.Reducer.mode(),
+                    reducer=ee.Reducer.frequencyHistogram(),
                     scale=10
                 ).getInfo()
 
-                for f in res["features"]:
-                    z = zone_map.get(int(f["properties"]["zone_id"]))
-                    cl = f["properties"].get("mode")
+                for feat in lc_res["features"]:
+                    props = feat["properties"]
+                    zid = props.get("zone_id")
+                    z = zone_map.get(int(zid))
                     if not z:
                         continue
 
-                    if cl is None:
-                        z.land_type = ""
-                    else:
-                        z.land_type = WORLD_COVER_CLASSES.get(int(cl), "")
+                    hist = props.get("histogram")
 
+                    # If no histogram → unknown
+                    if not hist:
+                        z.land_type = ""
+                        z.save()
+                        continue
+
+                    # Find max frequency count
+                    max_count = max(hist.values())
+
+                    # Get ALL classes with that max count
+                    dominant_classes = [
+                        int(k) for k, v in hist.items() if v == max_count
+                    ]
+
+                    # Convert class IDs into labels
+                    labels = [
+                        WORLD_COVER_CLASSES.get(c, f"class_{c}")
+                        for c in dominant_classes
+                    ]
+
+                    # Join them like "Grassland, Cropland"
+                    z.land_type = ", ".join(labels)
                     z.save()
 
                 self.stdout.write(self.style.SUCCESS("🏞 Land cover updated."))
