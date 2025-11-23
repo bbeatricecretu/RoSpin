@@ -1,10 +1,8 @@
-# Use official Python image
 FROM python:3.14-slim
 
-# Install PostgreSQL client (if needed)
+# Install system dependencies
 RUN apt-get update && apt-get install -y postgresql-client
 
-# Set working directory
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 
@@ -12,11 +10,11 @@ ENV PYTHONUNBUFFERED=1
 COPY SkyWind/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy Django project (including React static files)
+# Copy Django project
 COPY SkyWind/ ./
 
 # Expose port
 EXPOSE 8000
 
-# Run Django via Gunicorn
+# Run Django
 CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
