@@ -45,7 +45,7 @@ export default function HomePage() {
         className="hero"
         style={{ backgroundImage: `url(${wallpaper})` }}
       >
-        <div className="hero-overlay"></div> //a dark transparent overlay on top of the wallpaper
+        <div className="hero-overlay"></div> 
 
         <div className="hero-content">
           <img src={logo} alt="SkyWind" style={{ width: "130px" }} />
