@@ -1,7 +1,11 @@
-import { useState } from "react";
-import { computeRegion } from "../services/RegionAPI";
-import { useNavigate } from "react-router-dom";
-import type { RegionComputeResponseDTO } from "../dtos/RegionComputeResponseDTO";
+import { useState } from "react"; //Imports React’s useState hook
+import { computeRegion } from "../services/RegionAPI"; //Imports your function that calls the backend'
+import { useNavigate } from "react-router-dom"; //Hook from React Router -> Lets you navigate to another page programmatically
+import type {RegionComputeResponseDTO } from "../dtos/RegionDetailsDTO.ts"; //shape of the backend response
+
+//Loads static assets
+//Vite transforms these into URLs at buildTime
+//You can now use them as <img src={logo} />
 
 import logo from "../assets/logo.svg";
 import wallpaper from "../assets/wallpaper.png";

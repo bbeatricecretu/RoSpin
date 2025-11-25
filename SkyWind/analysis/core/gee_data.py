@@ -11,15 +11,15 @@ ee.Initialize(project='rospin1')
 def get_avg_temperature(lat: float, lon: float, year: int = 2023) -> float:
     """
     Return mean annual 2m air temperature (°C) from ERA5-Land.
-    
+
     Args:
         lat: Latitude in decimal degrees
         lon: Longitude in decimal degrees
         year: Year for data retrieval (default: 2023)
-    
+
     Returns:
         float: Mean annual temperature in Celsius, rounded to 2 decimals
-        
+
     Notes:
         - Uses ERA5-Land hourly reanalysis data
         - Converts from Kelvin to Celsius: T(°C) = T(K) - 273.15
@@ -51,14 +51,14 @@ def get_avg_temperature(lat: float, lon: float, year: int = 2023) -> float:
 def get_avg_wind_speeds(centers, year: int = 2023):
     """
     Fetch average annual wind speed and direction for multiple points.
-    
+
     Args:
         centers: list of (lat, lon) tuples — already rounded to ~5 decimals
         year: year for data (default: 2023)
-    
+
     Returns:
         dict[(lat, lon)] = {"speed": m/s, "direction": degrees (0–360)}
-        
+
     Notes:
         - Uses ERA5-Land hourly data at 10m height
         - Speed: √(u² + v²) averaged over the year
@@ -126,7 +126,7 @@ def get_avg_wind_speeds(centers, year: int = 2023):
 
     result = {}
     returned_count = 0
-    
+
     for f in reduced['features']:
         p = f['properties']
         lat_key = p.get('lat_key')
@@ -158,13 +158,13 @@ def get_avg_wind_speeds(centers, year: int = 2023):
 def get_dem_layers():
     """
     Create multi-band Earth Engine image with elevation, slope, and terrain roughness.
-    
+
     Returns:
         ee.Image: Three-band image containing:
             - elevation: Height above sea level in meters
             - slope: Terrain slope in degrees (0-90°)
             - tri: Terrain Ruggedness Index (std dev in 11×11 window)
-    
+
     Notes:
         - Source: Copernicus GLO-30 DEM (30m resolution)
         - TRI calculation: Standard deviation of elevation in 5-pixel radius
@@ -194,13 +194,13 @@ def get_dem_layers():
 def get_air_density_image(year: int = 2023):
     """
     Create Earth Engine image of air density using ideal gas law.
-    
+
     Args:
         year: Year for data retrieval (default: 2023)
-    
+
     Returns:
         ee.Image: Single-band image with air density in kg/m³
-        
+
     Notes:
         - Formula: ρ = P / (R_d × T)
         - P: surface pressure (Pa) from ERA5-Land
@@ -215,8 +215,8 @@ def get_air_density_image(year: int = 2023):
     )
 
     mean = coll.mean()
-    T = mean.select('temperature_2m')     # Kelvin
-    P = mean.select('surface_pressure')   # Pascals
+    T = mean.select('temperature_2m')  # Kelvin
+    P = mean.select('surface_pressure')  # Pascals
     R_d = 287.05
 
     rho = P.divide(T.multiply(R_d)).rename('air_density')
@@ -231,13 +231,13 @@ def get_air_density_image(year: int = 2023):
 def get_wind_power_density_image(year: int = 2023):
     """
     Create Earth Engine image of wind power density.
-    
+
     Args:
         year: Year for data retrieval (default: 2023)
-    
+
     Returns:
         ee.Image: Single-band image with wind power density in W/m²
-        
+
     Notes:
         - Formula: P = 0.5 × ρ × v³ (per Betz's law)
         - Calculates power density for each hour, then averages
@@ -263,8 +263,8 @@ def get_wind_power_density_image(year: int = 2023):
     def per_hour(img):
         u = img.select('u_component_of_wind_10m')
         v = img.select('v_component_of_wind_10m')
-        T = img.select('temperature_2m')   # K
-        P = img.select('surface_pressure') # Pa
+        T = img.select('temperature_2m')  # K
+        P = img.select('surface_pressure')  # Pa
         R_d = 287.05
 
         speed = u.pow(2).add(v.pow(2)).sqrt()
@@ -283,14 +283,14 @@ def get_wind_power_density_image(year: int = 2023):
 def get_landcover_image(year: int = 2021):
     """
     Load ESA WorldCover land cover classification image.
-    
+
     Args:
         year: Year for land cover data (default: 2021)
               Note: ESA WorldCover v200 is only available for 2020 and 2021
-    
+
     Returns:
         ee.Image: Single-band categorical image with land cover classes
-        
+
     Notes:
         - Source: ESA WorldCover v200
         - Resolution: 10m
