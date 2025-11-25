@@ -1,72 +1,52 @@
 import { useLocation, useNavigate } from "react-router-dom";
-//useLocation() → retrieves data passed from navigate("/region", { state })
-//useNavigate() → lets you redirect programmatically back to Home
-
-import { useState } from "react";//Lets you store internal component state
+import { useState } from "react";
 import logo from "../assets/logo.svg";
 import RegionMap from "../components/RegionMap";
 import type { RegionComputeResponseDTO } from "../dtos/RegionComputeResponseDTO";
 
 export default function RegionPage() {
-  const { state } = useLocation();//Reads the region data passed from HomePage
-  const navigate = useNavigate();//Allows redirecting to home when needed
+  const { state } = useLocation();
+  const navigate = useNavigate();
 
   const region = state as RegionComputeResponseDTO | null;
-  const [selectedZone, setSelectedZone] = useState<any>(null); //Initially, no zone is selected
+  const [selectedZone, setSelectedZone] = useState<any>(null);
 
   if (!region) {
     return (
       <div className="region-page">
-        <p>No region data. Please compute a region first.</p>
-        <button onClick={() => navigate("/")}>Back</button>
+        <div className="details-card" style={{ maxWidth: "600px", margin: "auto" }}>
+          <h2>No Region Data</h2>
+          <p style={{ marginBottom: "20px", color: "var(--text-secondary)" }}>
+            Please compute a region first to view the map and details.
+          </p>
+          <button
+            className="submit-btn"
+            onClick={() => navigate("/")}
+            style={{ width: "auto", padding: "12px 24px" }}
+          >
+            Go to Home
+          </button>
+        </div>
       </div>
     );
   }
 
-  // AUTO-FORMAT JSON OBJECTS FUNCTION
-  function renderFormattedJSON(obj: any) {
-    return (
-      <div className="json-table">
-        {Object.entries(obj).map(([key, value]) => {
-          //Object.entries() → converts object to array of [key, value]
-          //.map() → iterate each key/value pair and return JSX
-
-          // Nested objects like A, B, C, D
-          if (typeof value === "object" && value !== null) {
-            return (
-              <div key={key} className="json-block">
-                <div className="json-key">{key}:</div>
-                <div className="json-sub">
-                  {Object.entries(value).map(([subKey, subValue]) => (
-                    <div key={subKey} className="json-line">
-                      <span className="json-subkey">{subKey}</span>: {String(subValue)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-
-          // Simple values
-          return (
-            <div key={key} className="json-line">
-              <span className="json-key">{key}</span>: {String(value)}
-            </div>
-          );
-        })}
-      </div>
-    );
+  function formatCoordinate(value: number): string {
+    return value.toFixed(6);
   }
 
-  // PAGE LAYOUT
   return (
-    <div className="region-page">
-
-      {/* LEFT SIDE */}
+    <div className="region-page fade-in">
+      {/* LEFT SIDE - MAP */}
       <div className="region-left">
         <div className="region-header">
           <img src={logo} alt="SkyWind Logo" />
-          <h2>Region Map</h2>
+          <div>
+            <h2>Region Map</h2>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)", margin: 0 }}>
+              {region.zones.length} zones • Click a zone to view details
+            </p>
+          </div>
         </div>
 
         <div className="region-map-container">
@@ -74,41 +54,150 @@ export default function RegionPage() {
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT SIDE - DETAILS */}
       <div className="region-right">
-
         {/* REGION INFO */}
-        <h2>Region Details</h2>
-        <div className="region-info">
-          <div className="region-group">
-            <h4>Center</h4>
-            <p className="region-line"><strong>Lat:</strong> {region.center.lat.toFixed(4)}</p>
-            <p className="region-line"><strong>Lon:</strong> {region.center.lon.toFixed(4)}</p>
-          </div>
+        <div className="details-card">
+          <h2>Region Details</h2>
+          <div className="region-info">
+            <div className="region-group">
+              <h4>📍 Center Coordinates</h4>
+              <div className="region-line">
+                <strong>Latitude:</strong>
+                <span>{formatCoordinate(region.center.lat)}</span>
+              </div>
+              <div className="region-line">
+                <strong>Longitude:</strong>
+                <span>{formatCoordinate(region.center.lon)}</span>
+              </div>
+            </div>
 
-          <div className="region-group">
-            <h4>Corners</h4>
-            <p className="region-line"><strong>A:</strong> {region.corners.A.lat.toFixed(4)}, {region.corners.A.lon.toFixed(4)}</p>
-            <p className="region-line"><strong>B:</strong> {region.corners.B.lat.toFixed(4)}, {region.corners.B.lon.toFixed(4)}</p>
-            <p className="region-line"><strong>C:</strong> {region.corners.C.lat.toFixed(4)}, {region.corners.C.lon.toFixed(4)}</p>
-            <p className="region-line"><strong>D:</strong> {region.corners.D.lat.toFixed(4)}, {region.corners.D.lon.toFixed(4)}</p>
+            <div className="region-group">
+              <h4>🔲 Boundary Corners</h4>
+              <div className="region-line">
+                <strong>North-East (A):</strong>
+                <span>
+                  {formatCoordinate(region.corners.A.lat)},{" "}
+                  {formatCoordinate(region.corners.A.lon)}
+                </span>
+              </div>
+              <div className="region-line">
+                <strong>South-East (B):</strong>
+                <span>
+                  {formatCoordinate(region.corners.B.lat)},{" "}
+                  {formatCoordinate(region.corners.B.lon)}
+                </span>
+              </div>
+              <div className="region-line">
+                <strong>South-West (C):</strong>
+                <span>
+                  {formatCoordinate(region.corners.C.lat)},{" "}
+                  {formatCoordinate(region.corners.C.lon)}
+                </span>
+              </div>
+              <div className="region-line">
+                <strong>North-West (D):</strong>
+                <span>
+                  {formatCoordinate(region.corners.D.lat)},{" "}
+                  {formatCoordinate(region.corners.D.lon)}
+                </span>
+              </div>
+            </div>
+
+            <div className="region-group">
+              <h4>📊 Statistics</h4>
+              <div className="region-line">
+                <strong>Total Zones:</strong>
+                <span>{region.zones.length}</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* ZONE INFO */}
-        <h2 style={{ marginTop: "20px" }}>Zone Details</h2>
+        <div className="details-card">
+          <h2>Zone Details</h2>
 
-        {!selectedZone && (
-          <p className="zone-placeholder">Click a zone</p>
-        )}
+          {!selectedZone ? (
+            <div className="zone-placeholder">
+              <p style={{ fontSize: "48px", marginBottom: "16px" }}>🗺️</p>
+              <p>Click on a zone on the map to view its details</p>
+              <p style={{ fontSize: "14px", marginTop: "8px" }}>
+                Zones are color-coded by potential
+              </p>
+            </div>
+          ) : (
+            <div className="zone-info">
+              <div className="zone-title">Zone {selectedZone.index}</div>
 
-        {selectedZone && (
-          <div className="zone-info">
-            <h3>Zone {selectedZone.index}</h3>
-            {renderFormattedJSON(selectedZone)}
-          </div>
-        )}
+              <div className="zone-section">
+                <h4>📍 Coordinates</h4>
+                <div className="zone-metric">
+                  <span className="zone-metric-label">North-East (A):</span>
+                  <span className="zone-metric-value">
+                    {formatCoordinate(selectedZone.A.lat)},{" "}
+                    {formatCoordinate(selectedZone.A.lon)}
+                  </span>
+                </div>
+                <div className="zone-metric">
+                  <span className="zone-metric-label">South-East (B):</span>
+                  <span className="zone-metric-value">
+                    {formatCoordinate(selectedZone.B.lat)},{" "}
+                    {formatCoordinate(selectedZone.B.lon)}
+                  </span>
+                </div>
+                <div className="zone-metric">
+                  <span className="zone-metric-label">South-West (C):</span>
+                  <span className="zone-metric-value">
+                    {formatCoordinate(selectedZone.C.lat)},{" "}
+                    {formatCoordinate(selectedZone.C.lon)}
+                  </span>
+                </div>
+                <div className="zone-metric">
+                  <span className="zone-metric-label">North-West (D):</span>
+                  <span className="zone-metric-value">
+                    {formatCoordinate(selectedZone.D.lat)},{" "}
+                    {formatCoordinate(selectedZone.D.lon)}
+                  </span>
+                </div>
+              </div>
 
+              {selectedZone.potential !== undefined && (
+                <div className="zone-section">
+                  <h4>⚡ Energy Potential</h4>
+                  <div className="zone-metric">
+                    <span className="zone-metric-label">Potential:</span>
+                    <span className="zone-metric-value highlight">
+                      {selectedZone.potential.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {selectedZone.avg_wind_speed !== undefined && (
+                <div className="zone-section">
+                  <h4>💨 Wind Data</h4>
+                  <div className="zone-metric">
+                    <span className="zone-metric-label">Avg Wind Speed:</span>
+                    <span className="zone-metric-value">
+                      {selectedZone.avg_wind_speed.toFixed(2)} m/s
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-color)" }}>
+                <button
+                  className="submit-btn"
+                  onClick={() => setSelectedZone(null)}
+                  style={{ width: "100%", padding: "10px" }}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
