@@ -325,7 +325,71 @@ A suitability index (0--100) used for ranking zones.
 
 ------------------------------------------------------------------------
 
-# 9. Wind Rose (Region Level)
+# 9. Infrastructure Accessibility (Zone Level)
+
+### **Source:**
+
+OpenStreetMap via Overpass API
+
+### **Meaning:**
+
+Infrastructure accessibility score (0--10) based on proximity to:
+- Power substations and transmission lines (critical for grid connection)
+- Major roads and motorways (for construction and maintenance access)
+
+### **How Computed:**
+
+1. Calculate zone center coordinates.
+
+2. Query OpenStreetMap within 50km radius for:
+   - Power substations (`power=substation`)
+   - High-voltage transmission lines (`power=line`, 110kV-400kV)
+   - Motorways (`highway=motorway`)
+   - Major roads (`highway=trunk` or `primary`)
+
+3. Calculate distance to nearest of each type.
+
+4. Score each category (0-10) based on distance:
+   - **Substations** (40% weight):
+     - < 5km: 10 points
+     - < 10km: 8 points
+     - < 20km: 6 points
+     - < 35km: 4 points
+     - < 50km: 2 points
+   - **Transmission lines** (30% weight):
+     - < 2km: 10 points
+     - < 5km: 8 points
+     - < 10km: 6 points
+   - **Major roads** (20% weight):
+     - < 1km: 10 points
+     - < 3km: 8 points
+     - < 5km: 6 points
+   - **Motorways** (10% weight):
+     - < 5km: 10 points
+     - < 15km: 7 points
+     - < 30km: 4 points
+
+5. Calculate weighted average and round to integer.
+
+6. Store in `zone.infrastructure.index`.
+
+### **Typical Values:**
+
+- **0-2**: Very poor accessibility (remote areas)
+- **3-4**: Poor accessibility (significant infrastructure investment needed)
+- **5-6**: Moderate accessibility (feasible with planning)
+- **7-8**: Good accessibility (favorable for development)
+- **9-10**: Excellent accessibility (near existing infrastructure)
+
+### **Notes:**
+
+- Uses rate limiting (1 second delay per 10 zones) to avoid overwhelming OSM servers
+- Includes retry logic for transient API errors
+- Returns 0 if no infrastructure found within 50km radius
+
+------------------------------------------------------------------------
+
+# 10. Wind Rose (Region Level)
 
 ### **Meaning:**
 
@@ -346,7 +410,7 @@ Shows average wind strength for each of:
 
 ------------------------------------------------------------------------
 
-# 10. Region-Level Metrics
+# 11. Region-Level Metrics
 
 ### **a) avg_potential**
 
@@ -358,7 +422,9 @@ Zone with highest potential.
 
 ### **c) infrastructure_rating**
 
-Average `infrastructure.index` across zones.
+Average `infrastructure.index` across all zones in the region.
+
+Reflects overall accessibility of the region for wind farm development.
 
 ### **d) index_average**
 
