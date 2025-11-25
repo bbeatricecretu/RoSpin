@@ -67,15 +67,15 @@ class Region(models.Model):
     with geometry (center + corners) and aggregated metrics.
     """
 
-    center = models.OneToOneField(
+    center = models.ForeignKey(
         Point, on_delete=models.CASCADE, related_name="region_center"
     )
 
-    # Region corners (A=NE, B=SE, C=SW, D=NW)
-    A = models.OneToOneField(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_A")
-    B = models.OneToOneField(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_B")
-    C = models.OneToOneField(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_C")
-    D = models.OneToOneField(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_D")
+    # Region corners (A=NE, B=SE, C=SW, D=NW) - ForeignKey allows sharing
+    A = models.ForeignKey(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_A")
+    B = models.ForeignKey(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_B")
+    C = models.ForeignKey(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_C")
+    D = models.ForeignKey(Point, on_delete=models.SET_NULL, null=True, blank=True, related_name="region_D")
 
     # Region-level aggregated metrics
     avg_temperature = models.FloatField(default=0.0)
@@ -96,9 +96,7 @@ class Region(models.Model):
     )
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["center"], name="unique_region_center")
-        ]
+        pass
 
     def __str__(self):
         return f"Region #{self.id} @ ({self.center.lat:.4f}, {self.center.lon:.4f})"
@@ -152,11 +150,11 @@ class Zone(models.Model):
         RegionGrid, on_delete=models.CASCADE, related_name="zones"
     )
 
-    # Geometry (corner points)
-    A = models.OneToOneField(Point, on_delete=models.CASCADE, related_name="zone_A")
-    B = models.OneToOneField(Point, on_delete=models.CASCADE, related_name="zone_B")
-    C = models.OneToOneField(Point, on_delete=models.CASCADE, related_name="zone_C")
-    D = models.OneToOneField(Point, on_delete=models.CASCADE, related_name="zone_D")
+    # Geometry (corner points) - ForeignKey allows multiple zones to share points
+    A = models.ForeignKey(Point, on_delete=models.CASCADE, related_name="zone_A")
+    B = models.ForeignKey(Point, on_delete=models.CASCADE, related_name="zone_B")
+    C = models.ForeignKey(Point, on_delete=models.CASCADE, related_name="zone_C")
+    D = models.ForeignKey(Point, on_delete=models.CASCADE, related_name="zone_D")
 
     # Wind
     wind_direction = models.FloatField(default=0.0)  # degrees 0–360
