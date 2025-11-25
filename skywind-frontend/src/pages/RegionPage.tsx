@@ -59,16 +59,18 @@ export default function RegionPage() {
     );
   }
 
-  return (
-    <div className="region-page">
+return (
+  <div className="region-page">
+    {/* HEADER */}
+    <div className="region-header">
+      <img src={logo} alt="SkyWind Logo" />
+      <h2>Region Map</h2>
+    </div>
 
-      {/* LEFT SIDE */}
+    {/* MAIN TWO-COLUMN LAYOUT */}
+    <div className="region-main">
+      {/* LEFT = MAP */}
       <div className="region-left">
-        <div className="region-header">
-          <img src={logo} alt="SkyWind Logo" />
-          <h2>Region Map</h2>
-        </div>
-
         {regionDetails && (
           <div className="region-map-container">
             <RegionMap
@@ -80,16 +82,24 @@ export default function RegionPage() {
         )}
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT = REGION + ZONE DETAILS */}
       <div className="region-right">
-        <h2>Region Details</h2>
-        {regionDetails && <RegionDetails region={regionDetails} />}
+        <div className="details-card">
+          <h2>Region Details</h2>
+          {regionDetails && <RegionDetails region={regionDetails} />}
+        </div>
 
-        <h2 style={{ marginTop: "20px" }}>Zone Details</h2>
-        {!selectedZone && <p>Click a zone</p>}
-        {selectedZone && <ZoneDetails zone={selectedZone} />}
+        <div className="details-card">
+          <h2>Zone Details</h2>
+          {!selectedZone && (
+            <p className="zone-placeholder">Click a zone</p>
+          )}
+          {selectedZone && <ZoneDetails zone={selectedZone} />}
+        </div>
       </div>
-
     </div>
-  );
+  </div>
+);
+
+
 }
