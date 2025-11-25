@@ -101,29 +101,34 @@ class Command(BaseCommand):
             ))
 
             # -------------------------------------------------------------
+            # BUILD SHARED ZONE DATA STRUCTURES
+            # (Used by DEM, air density, power density, and land cover)
+            # -------------------------------------------------------------
+            zone_map = {z.id: z for z in zones}
+
+            features = []
+            for z in zones:
+                poly = [
+                    [z.A.lon, z.A.lat],
+                    [z.B.lon, z.B.lat],
+                    [z.C.lon, z.C.lat],
+                    [z.D.lon, z.D.lat],
+                    [z.A.lon, z.A.lat],
+                ]
+                features.append(ee.Feature(
+                    ee.Geometry.Polygon([poly]),
+                    {"zone_id": z.id}
+                ))
+
+            fc = ee.FeatureCollection(features)
+
+            # -------------------------------------------------------------
             # STEP 3 — DEM (min/max altitude + roughness)
             # -------------------------------------------------------------
             try:
                 self.stdout.write(self.style.NOTICE("🗺 DEM..."))
 
                 dem_img = get_dem_layers()
-                zone_map = {z.id: z for z in zones}
-
-                features = []
-                for z in zones:
-                    poly = [
-                        [z.A.lon, z.A.lat],
-                        [z.B.lon, z.B.lat],
-                        [z.C.lon, z.C.lat],
-                        [z.D.lon, z.D.lat],
-                        [z.A.lon, z.A.lat],
-                    ]
-                    features.append(ee.Feature(
-                        ee.Geometry.Polygon([poly]),
-                        {"zone_id": z.id}
-                    ))
-
-                fc = ee.FeatureCollection(features)
 
                 reducer = (
                     ee.Reducer.mean()

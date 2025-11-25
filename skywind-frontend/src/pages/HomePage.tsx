@@ -1,7 +1,7 @@
 import { useState } from "react"; //Imports React’s useState hook
 import { computeRegion } from "../services/RegionAPI"; //Imports your function that calls the backend'
 import { useNavigate } from "react-router-dom"; //Hook from React Router -> Lets you navigate to another page programmatically
-import type {RegionComputeResponseDTO } from "../dtos/RegionComputeResponseDTO"; //shape of the backend response
+import type {RegionComputeResponseDTO } from "../dtos/RegionDetailsDTO.ts"; //shape of the backend response
 
 //Loads static assets
 //Vite transforms these into URLs at buildTime

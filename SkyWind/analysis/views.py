@@ -1,40 +1,45 @@
 from django.http import JsonResponse
-from .models import Region, Zone
+from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
+from .models import Region, RegionGrid, Zone, Point, Infrastructure
+from analysis.core.gee_service import compute_gee_for_grid
 from .core.geometry import compute_region_corners, generate_zone_grid
 import json
 
-
 # ------------------------------------------------------------
-# REGION DETAILS
+# REGION DETAILS (AUTO-GEE IF NEEDED)
 # ------------------------------------------------------------
 def get_region_details(request, region_id):
     try:
-        r = Region.objects.select_related("center", "A", "B", "C", "D").get(pk=region_id)
+        r = Region.objects.select_related("A","B","C","D","center").get(pk=region_id)
     except Region.DoesNotExist:
         return JsonResponse({"error": "Region not found"}, status=404)
 
-    data = {
+    grid = r.grids.first()
+
+    # Auto-fetch GEE ONLY if region has no data yet
+    if grid and r.avg_temperature == 0:
+        compute_gee_for_grid(grid)
+
+    return JsonResponse({
         "id": r.id,
+
+        # geometry
         "center": {"lat": r.center.lat, "lon": r.center.lon},
         "A": {"lat": r.A.lat, "lon": r.A.lon},
         "B": {"lat": r.B.lat, "lon": r.B.lon},
         "C": {"lat": r.C.lat, "lon": r.C.lon},
         "D": {"lat": r.D.lat, "lon": r.D.lon},
 
+        # region metrics
         "avg_temperature": r.avg_temperature,
         "wind_rose": r.wind_rose,
         "rating": r.rating,
         "avg_potential": r.avg_potential,
         "infrastructure_rating": r.infrastructure_rating,
         "index_average": r.index_average,
-    }
-
-    return JsonResponse(data, safe=False)
-
-
-# ------------------------------------------------------------
-# REGION ZONES
-# ------------------------------------------------------------
+        "max_potential_zone": r.max_potential.id if r.max_potential else None,
+    })
 def get_region_zones(request, region_id):
     zones = Zone.objects.filter(grid__region_id=region_id).select_related("A", "B", "C", "D")
 
@@ -64,33 +69,67 @@ def get_region_zones(request, region_id):
 
 
 # ------------------------------------------------------------
-# SINGLE ZONE
+# ZONE DETAILS (AUTO-GEE IF NEEDED)
 # ------------------------------------------------------------
 def get_zone_details(request, zone_id):
     try:
-        z = Zone.objects.select_related("A", "B", "C", "D", "infrastructure").get(pk=zone_id)
+        z = Zone.objects.select_related(
+            "A","B","C","D","infrastructure","grid","grid__region"
+        ).get(pk=zone_id)
     except Zone.DoesNotExist:
         return JsonResponse({"error": "Zone not found"}, status=404)
 
+    # auto-GEE refresh if missing
+    region = z.grid.region
+    grid = z.grid
+
+    if region.avg_temperature == 0 or z.avg_wind_speed == 0:
+        compute_gee_for_grid(grid)
+
+        # refresh object
+        z = Zone.objects.select_related(
+            "A","B","C","D","infrastructure","grid","grid__region"
+        ).get(pk=zone_id)
+
     return JsonResponse({
+
         "id": z.id,
         "zone_index": z.zone_index,
+        "region_id": z.grid.region.id,
+        "grid_id": z.grid.id,
 
+        # geometry
         "A": {"lat": z.A.lat, "lon": z.A.lon},
         "B": {"lat": z.B.lat, "lon": z.B.lon},
         "C": {"lat": z.C.lat, "lon": z.C.lon},
         "D": {"lat": z.D.lat, "lon": z.D.lon},
 
+        # wind
         "avg_wind_speed": z.avg_wind_speed,
+        "wind_direction": z.wind_direction,
+
+        # terrain
         "min_alt": z.min_alt,
         "max_alt": z.max_alt,
         "roughness": z.roughness,
+
+        # air + power
         "air_density": z.air_density,
         "power_avg": z.power_avg,
+
+        # classification
         "land_type": z.land_type,
         "potential": z.potential,
-    })
 
+        # infra
+        "infrastructure": {
+            "index": z.infrastructure.index,
+            "km_jud": z.infrastructure.km_jud,
+            "km_nat": z.infrastructure.km_nat,
+            "km_euro": z.infrastructure.km_euro,
+            "km_auto": z.infrastructure.km_auto,
+        }
+    })
 
 # ------------------------------------------------------------
 # COMPUTE REGION (WITH DB)

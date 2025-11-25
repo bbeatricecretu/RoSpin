@@ -1,20 +1,23 @@
 import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import type{ RegionComputeResponseDTO } from "../dtos/RegionComputeResponseDTO";
+
+import type { RegionDetailsDTO } from "../dtos/RegionDetailsDTO";
+import type { ZoneDetailsDTO } from "../dtos/ZoneDetailsDTO";
 
 type RegionMapProps = {
-  region: RegionComputeResponseDTO;
-  onZoneSelect: (zone: any) => void;
+  region: RegionDetailsDTO;
+  zones: ZoneDetailsDTO[];
+  onZoneSelect: (zoneId: number) => void;
 };
 
-export default function RegionMap({ region, onZoneSelect }: RegionMapProps) {
-  const { center, corners, zones } = region;
+export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProps) {
+  const { center, A, B, C, D } = region;
 
   const regionPolygon: [number, number][] = [
-    [corners.A.lat, corners.A.lon],
-    [corners.B.lat, corners.B.lon],
-    [corners.C.lat, corners.C.lon],
-    [corners.D.lat, corners.D.lon],
+    [A.lat, A.lon],
+    [B.lat, B.lon],
+    [C.lat, C.lon],
+    [D.lat, D.lon],
   ];
 
   const mapCenter: [number, number] = [center.lat, center.lon];
@@ -31,10 +34,12 @@ export default function RegionMap({ region, onZoneSelect }: RegionMapProps) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
+      {/* REGION OUTLINE */}
       <Polygon positions={regionPolygon} pathOptions={{ color: "lime", weight: 3 }} />
 
-      {zones.map((z, i) => {
-        const polygon: [number, number][] = [
+      {/* ZONES */}
+      {zones.map((z) => {
+        const poly: [number, number][] = [
           [z.A.lat, z.A.lon],
           [z.B.lat, z.B.lon],
           [z.C.lat, z.C.lon],
@@ -43,10 +48,10 @@ export default function RegionMap({ region, onZoneSelect }: RegionMapProps) {
 
         return (
           <Polygon
-            key={i}
-            positions={polygon}
+            key={z.id}
+            positions={poly}
             eventHandlers={{
-              click: () => onZoneSelect(z),
+              click: () => onZoneSelect(z.id),
             }}
             pathOptions={{
               color: "white",
