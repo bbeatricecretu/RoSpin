@@ -53,8 +53,19 @@ export default function RegionPage() {
   if (!regionId) {
     return (
       <div className="region-page">
-        <p>No region data. Please compute a region first.</p>
-        <button onClick={() => navigate("/")}>Back</button>
+        <div className="details-card" style={{ maxWidth: "600px", margin: "auto" }}>
+          <h2>No Region Data</h2>
+          <p style={{ marginBottom: "20px", color: "var(--text-secondary)" }}>
+            Please compute a region first to view the map and details.
+          </p>
+          <button
+            className="submit-btn"
+            onClick={() => navigate("/")}
+            style={{ width: "auto", padding: "12px 24px" }}
+          >
+            Go to Home
+          </button>
+        </div>
       </div>
     );
   }

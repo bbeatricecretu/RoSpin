@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Polygon } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Popup, useMap } from "react-leaflet";
+import { useEffect } from "react";
 import "leaflet/dist/leaflet.css";
 
 import type { RegionDetailsDTO } from "../dtos/RegionDetailsDTO";
@@ -25,12 +26,13 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
   return (
     <MapContainer
       center={mapCenter}
-      zoom={12}
+      zoom={11}
       scrollWheelZoom={true}
       className="leaflet-container"
+      style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
-        attribution="&copy; OpenStreetMap"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
@@ -46,6 +48,8 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
           [z.D.lat, z.D.lon],
         ];
 
+        const zoneColor = getZoneColor(i, zones.length);
+
         return (
           <Polygon
             key={z.id}
@@ -54,12 +58,20 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
               click: () => onZoneSelect(z.id),
             }}
             pathOptions={{
-              color: "white",
+              color: "#ffffff",
               weight: 1,
-              fillColor: "rgba(0,255,0,0.3)",
-              fillOpacity: 0.3,
+              fillColor: zoneColor,
+              fillOpacity: 0.4,
             }}
-          />
+          >
+            <Popup>
+              <div style={{ minWidth: "150px" }}>
+                <strong>Zone {z.index}</strong>
+                <br />
+                <small>Click to view details</small>
+              </div>
+            </Popup>
+          </Polygon>
         );
       })}
     </MapContainer>
