@@ -25,3 +25,5 @@ dist-ssr
 
 /pycache/
 *.iml
+__pycache__/
+*.pyc
