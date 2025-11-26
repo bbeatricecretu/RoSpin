@@ -88,7 +88,7 @@ def get_avg_wind_speeds(centers, year: int = 2023):
 
     # Wind direction atan2(u, v) -> degrees
     direction = mean.expression(
-        '(180 / 3.14159265) * atan2(u, v)',
+        '(180 / 3.14159265) * atan2(v, u)',
         {
             'u': mean.select('u_component_of_wind_10m'),
             'v': mean.select('v_component_of_wind_10m'),

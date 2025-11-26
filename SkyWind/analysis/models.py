@@ -101,6 +101,34 @@ class Region(models.Model):
     def __str__(self):
         return f"Region #{self.id} @ ({self.center.lat:.4f}, {self.center.lon:.4f})"
 
+    def zone_power_for_turbines(self, turbine: "WindTurbineType"):
+        """
+        Return a list of dicts:
+            [
+              {"zone": <Zone>, "power_kw": <float>},
+              ...
+            ]
+        for all zones in this region for the given turbine.
+        """
+        from .models import Zone  # local import to avoid circular imports
+
+        zones = (
+            Zone.objects
+            .filter(grid__region=self)
+            .select_related("grid")
+        )
+
+        results = []
+        for zone in zones:
+            power_kw = zone.power_for_turbine(turbine)
+            results.append(
+                {
+                    "zone": zone,
+                    "power_kw": power_kw,
+                }
+            )
+        return results
+
 
 # ---------------------------------------------------------
 # REGION GRID MODEL
@@ -193,3 +221,66 @@ class Zone(models.Model):
             (self.A.lat + self.B.lat + self.C.lat + self.D.lat) / 4,
             (self.A.lon + self.B.lon + self.C.lon + self.D.lon) / 4,
         )
+
+    def power_for_turbine(self, turbine: "WindTurbineType") -> float:
+
+        if self.air_density <= 0 or self.avg_wind_speed <= 0:
+            return 0.0
+
+        swept_area_m2 = (
+            turbine.swept_area_min_m2 + turbine.swept_area_max_m2) / 2.0
+
+        rho = self.air_density
+        v = self.avg_wind_speed
+        p_watts = 0.5 * rho * v**3 * swept_area_m2
+        p_kw = p_watts / 1000.0
+        return min(p_kw, turbine.rated_power_max_kw)
+
+
+# ---------------------------------------------------------
+# WIND TURBINE TYPE MODEL
+# ---------------------------------------------------------
+
+class WindTurbineType(models.Model):
+    """
+    Stores reference data for different wind turbine types.
+
+    Based on the structure:
+        {
+            "type": "Small Wind Turbine",
+            "category": "Onshore",
+            "rotor_diameter_m": "1-10",
+            "swept_area_m2": "1-80",
+            "rated_power_kw": "1-20"
+        }
+
+    The numeric ranges are stored as min/max float fields for easier querying.
+    """
+
+    CATEGORY_ONSHORE = "Onshore"
+    CATEGORY_OFFSHORE = "Offshore"
+
+    type_name = models.CharField(max_length=100)
+    category = models.CharField(
+        max_length=20,
+        choices=[
+            (CATEGORY_ONSHORE, "Onshore"),
+            (CATEGORY_OFFSHORE, "Offshore"),
+        ],
+    )
+
+    rotor_diameter_min_m = models.FloatField()
+    rotor_diameter_max_m = models.FloatField()
+
+    swept_area_min_m2 = models.FloatField()
+    swept_area_max_m2 = models.FloatField()
+
+    rated_power_min_kw = models.FloatField()
+    rated_power_max_kw = models.FloatField()
+
+    class Meta:
+        verbose_name = "Wind turbine type"
+        verbose_name_plural = "Wind turbine types"
+
+    def __str__(self):
+        return f"{self.type_name} ({self.category})"

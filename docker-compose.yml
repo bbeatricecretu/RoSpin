@@ -1,46 +1,6 @@
-version: '3.9'
-
 services:
   # ----------------------------
-  # BACKEND (Django)
-  # ----------------------------
-  web:
-    build: .
-    container_name: skywind
-    # Run dev server for hot-reloading Python code
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./SkyWind:/app
-      - ~/.config/earthengine:/root/.config/earthengine:ro
-    depends_on:
-      - db
-    environment:
-      - DJANGO_SETTINGS_MODULE=core.settings
-      - POSTGRES_DB=skywind
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-
-  # ----------------------------
-  # FRONTEND (React / Vite)
-  # ----------------------------
-  frontend:
-    build: ./skywind-frontend
-    container_name: skywind-frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./skywind-frontend:/app
-      - /app/node_modules # Prevent host node_modules from conflicting
-    environment:
-      # If you have code using this variable, it points to your backend
-      - VITE_API_URL=http://localhost:8000 
-
-  # ----------------------------
-  # DATABASE
+  # DATABASE (PostgreSQL)
   # ----------------------------
   db:
     image: postgres:15
@@ -54,6 +14,46 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  # ----------------------------
+  # BACKEND (Django)
+  # ----------------------------
+  web:
+    build:
+      context: ./SkyWind
+      dockerfile: Dockerfile
+    container_name: skywind
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./SkyWind:/app
+      - ~/.config/earthengine:/root/.config/earthengine:ro
+    depends_on:
+      - db
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+      POSTGRES_DB: skywind
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+
+  # ----------------------------
+  # FRONTEND (React / Vite)
+  # ----------------------------
+  frontend:
+    build: ./skywind-frontend
+    container_name: skywind-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./skywind-frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:8000
 
 volumes:
   pgdata:

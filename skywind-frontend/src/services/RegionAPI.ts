@@ -7,6 +7,20 @@ import type { ZoneDetailsDTO } from "../dtos/ZoneDetailsDTO";
 const API_URL = "http://localhost:8000/api";
 
 // ------------------------------------------------------------
+// ZONE POWERS (GET /regions/:id/zone-powers/?turbine_id=...)
+// ------------------------------------------------------------
+export async function getRegionZonePowers(
+  regionId: number,
+  turbineId: number
+): Promise<any[]> {
+  const response = await fetch(
+    `${API_URL}/regions/${regionId}/zone-powers/?turbine_id=${turbineId}`
+  );
+  if (!response.ok) throw new Error("Zone powers fetch failed");
+  return response.json();
+}
+
+// ------------------------------------------------------------
 // COMPUTE REGION  (POST /regions/compute/)
 // ------------------------------------------------------------
 export async function computeRegion(

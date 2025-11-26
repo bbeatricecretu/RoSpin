@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from .models import Region, RegionGrid, Zone, Point, Infrastructure
+from .models import Region, RegionGrid, Zone, Point, Infrastructure, WindTurbineType
 from analysis.core.gee_service import compute_gee_for_grid
 from .core.geometry import compute_region_corners, generate_zone_grid
 import json
@@ -11,7 +11,7 @@ import json
 # ------------------------------------------------------------
 def get_region_details(request, region_id):
     try:
-        r = Region.objects.select_related("A","B","C","D","center").get(pk=region_id)
+        r = Region.objects.select_related("A", "B", "C", "D", "center").get(pk=region_id)
     except Region.DoesNotExist:
         return JsonResponse({"error": "Region not found"}, status=404)
 
@@ -40,8 +40,12 @@ def get_region_details(request, region_id):
         "index_average": r.index_average,
         "max_potential_zone": r.max_potential.id if r.max_potential else None,
     })
+
+
 def get_region_zones(request, region_id):
-    zones = Zone.objects.filter(grid__region_id=region_id).select_related("A", "B", "C", "D")
+    zones = Zone.objects.filter(
+        grid__region_id=region_id
+    ).select_related("A", "B", "C", "D")
 
     result = []
     for z in zones:
@@ -74,7 +78,7 @@ def get_region_zones(request, region_id):
 def get_zone_details(request, zone_id):
     try:
         z = Zone.objects.select_related(
-            "A","B","C","D","infrastructure","grid","grid__region"
+            "A", "B", "C", "D", "infrastructure", "grid", "grid__region"
         ).get(pk=zone_id)
     except Zone.DoesNotExist:
         return JsonResponse({"error": "Zone not found"}, status=404)
@@ -88,7 +92,7 @@ def get_zone_details(request, zone_id):
 
         # refresh object
         z = Zone.objects.select_related(
-            "A","B","C","D","infrastructure","grid","grid__region"
+            "A", "B", "C", "D", "infrastructure", "grid", "grid__region"
         ).get(pk=zone_id)
 
     return JsonResponse({
@@ -130,17 +134,6 @@ def get_zone_details(request, zone_id):
             "km_auto": z.infrastructure.km_auto,
         }
     })
-
-# ------------------------------------------------------------
-# COMPUTE REGION (WITH DB)
-# ------------------------------------------------------------
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db import transaction
-
-from .models import Region, RegionGrid, Zone, Point, Infrastructure
-from .core.geometry import compute_region_corners, generate_zone_grid
-import json
 
 
 # ----------------------------
@@ -191,14 +184,14 @@ def _zones_match_expected(grid: RegionGrid) -> bool:
         for cell in row:
             z = zones[idx]
             if (
-                    abs(z.A.lat - cell["A"][0]) > tolerance or
-                    abs(z.A.lon - cell["A"][1]) > tolerance or
-                    abs(z.B.lat - cell["B"][0]) > tolerance or
-                    abs(z.B.lon - cell["B"][1]) > tolerance or
-                    abs(z.C.lat - cell["C"][0]) > tolerance or
-                    abs(z.C.lon - cell["C"][1]) > tolerance or
-                    abs(z.D.lat - cell["D"][0]) > tolerance or
-                    abs(z.D.lon - cell["D"][1]) > tolerance
+                abs(z.A.lat - cell["A"][0]) > tolerance or
+                abs(z.A.lon - cell["A"][1]) > tolerance or
+                abs(z.B.lat - cell["B"][0]) > tolerance or
+                abs(z.B.lon - cell["B"][1]) > tolerance or
+                abs(z.C.lat - cell["C"][0]) > tolerance or
+                abs(z.C.lon - cell["C"][1]) > tolerance or
+                abs(z.D.lat - cell["D"][0]) > tolerance or
+                abs(z.D.lon - cell["D"][1]) > tolerance
             ):
                 return False
             idx += 1
@@ -260,7 +253,7 @@ def _delete_grid_zones(grid: RegionGrid):
 
 
 # ----------------------------
-# MAIN ENDPOINT
+# MAIN ENDPOINT: COMPUTE REGION
 # ----------------------------
 
 @csrf_exempt
@@ -336,8 +329,8 @@ def compute_region(request):
 
         # 5) ZONES – regenerate only when needed
         need_regeneration = (
-                not grid.zones.exists() or
-                not _zones_match_expected(grid)
+            not grid.zones.exists() or
+            not _zones_match_expected(grid)
         )
 
         if need_regeneration:
@@ -373,3 +366,52 @@ def compute_region(request):
         "corners": resp_corners,
         "zones": resp_zones,
     })
+
+
+# ------------------------------------------------------------
+# NEW: REGION ZONE POWERS (TURBINE-SPECIFIC)
+# ------------------------------------------------------------
+
+def get_region_zone_powers(request, region_id):
+    """
+    Returns all zones of a region with coordinates and achievable power (kW)
+    for a given turbine type.
+
+    Query params:
+        turbine_id: ID of WindTurbineType
+    """
+    turbine_id = request.GET.get("turbine_id")
+    if not turbine_id:
+        return JsonResponse({"error": "turbine_id is required"}, status=400)
+
+    try:
+        region = Region.objects.get(pk=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
+
+    try:
+        turbine = WindTurbineType.objects.get(pk=turbine_id)
+    except WindTurbineType.DoesNotExist:
+        return JsonResponse({"error": "Turbine type not found"}, status=404)
+
+    zone_powers = region.zone_power_for_turbines(turbine)
+
+    result = []
+    for item in zone_powers:
+        z = item["zone"]
+        power_kw = item["power_kw"]
+        result.append({
+            "id": z.id,
+            "zone_index": z.zone_index,
+
+            "A": {"lat": z.A.lat, "lon": z.A.lon},
+            "B": {"lat": z.B.lat, "lon": z.B.lon},
+            "C": {"lat": z.C.lat, "lon": z.C.lon},
+            "D": {"lat": z.D.lat, "lon": z.D.lon},
+
+            "power_kw": power_kw,
+            "avg_wind_speed": z.avg_wind_speed,
+            "air_density": z.air_density,
+        })
+
+    return JsonResponse(result, safe=False)
