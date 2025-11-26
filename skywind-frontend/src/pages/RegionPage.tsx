@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-
 import logo from "../assets/logo.svg";
 
 import RegionMap from "../components/RegionMap";
