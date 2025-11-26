@@ -5,6 +5,42 @@ import "leaflet/dist/leaflet.css";
 import type { RegionDetailsDTO } from "../dtos/RegionDetailsDTO";
 import type { ZoneDetailsDTO } from "../dtos/ZoneDetailsDTO";
 
+/* =======================================================
+   CATEGORY-LOCKED GRADIENT COLOR FUNCTION
+   Smooth nuance inside correct color band.
+   ======================================================= */
+function getZoneColor(potential: number) {
+  const p = Math.max(0, Math.min(100, potential)); // clamp
+
+  // Red category: 0–20
+  if (p < 20) {
+    const t = p / 20; // 0..1
+    return `hsl(${0 + t * 10}, 90%, ${40 + t * 10}%)`;
+    // shades of red → slightly lighter red
+  }
+
+  // Orange category: 20–40
+  if (p < 40) {
+    const t = (p - 20) / 20;
+    return `hsl(${20 + t * 20}, 90%, ${45 + t * 10}%)`;
+    // dark orange → bright orange
+  }
+
+  // Yellow-green category: 40–70
+  if (p < 70) {
+    const t = (p - 40) / 30;
+    return `hsl(${40 + t * 60}, 85%, ${50 + t * 10}%)`;
+    // orange-yellow → yellow → yellow-green
+  }
+
+  // Green category: 70–100
+  const t = (p - 70) / 30;
+  return `hsl(${100 + t * 40}, 85%, ${45 + t * 10}%)`;
+  // green → brighter lime green
+}
+
+
+
 type RegionMapProps = {
   region: RegionDetailsDTO;
   zones: ZoneDetailsDTO[];
@@ -37,7 +73,14 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
       />
 
       {/* REGION OUTLINE */}
-      <Polygon positions={regionPolygon} pathOptions={{ color: "lime", weight: 3 }} />
+      <Polygon
+        positions={regionPolygon}
+        pathOptions={{
+          color: "#00b4d8",
+          weight: 3,
+          fillOpacity: 0,
+        }}
+      />
 
       {/* ZONES */}
       {zones.map((z) => {
@@ -58,10 +101,17 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
               click: () => onZoneSelect(z.id),
             }}
             pathOptions={{
+<<<<<<< HEAD
               color: "#ffffff",
               weight: 1,
               fillColor: zoneColor,
               fillOpacity: 0.4,
+=======
+              color: "#222",
+              weight: 1,
+              fillColor: getZoneColor(z.potential),
+              fillOpacity: 0.85,
+>>>>>>> a535bb4 (fix frontend)
             }}
           >
             <Popup>
