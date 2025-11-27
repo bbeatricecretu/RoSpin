@@ -8,14 +8,14 @@ ee.Initialize(project='rospin1')
 # TEMPERATURE
 # ---------------------------------------------------------
 
-def get_avg_temperature(lat: float, lon: float, year: int = 2023) -> float:
+def get_avg_temperature(lat: float, lon: float, year: int = 2022) -> float:
     """
     Return mean annual 2m air temperature (°C) from ERA5-Land.
 
     Args:
         lat: Latitude in decimal degrees
         lon: Longitude in decimal degrees
-        year: Year for data retrieval (default: 2023)
+        year: Year for data retrieval (default: 2022)
 
     Returns:
         float: Mean annual temperature in Celsius, rounded to 2 decimals
@@ -48,13 +48,13 @@ def get_avg_temperature(lat: float, lon: float, year: int = 2023) -> float:
 # WIND SPEED + WIND DIRECTION
 # ---------------------------------------------------------
 
-def get_avg_wind_speeds(centers, year: int = 2023):
+def get_avg_wind_speeds(centers, year: int = 2022):
     """
     Fetch average annual wind speed and direction for multiple points.
 
     Args:
         centers: list of (lat, lon) tuples — already rounded to ~5 decimals
-        year: year for data (default: 2023)
+        year: year for data (default: 2022)
 
     Returns:
         dict[(lat, lon)] = {"speed": m/s, "direction": degrees (0–360)}
@@ -194,12 +194,12 @@ def get_dem_layers():
 # AIR DENSITY ρ = p / (R_d * T)
 # ---------------------------------------------------------
 
-def get_air_density_image(year: int = 2023):
+def get_air_density_image(year: int = 2022):
     """
     Create Earth Engine image of air density using ideal gas law.
 
     Args:
-        year: Year for data retrieval (default: 2023)
+        year: Year for data retrieval (default: 2022)
 
     Returns:
         ee.Image: Single-band image with air density in kg/m³
@@ -210,6 +210,7 @@ def get_air_density_image(year: int = 2023):
         - T: 2m temperature (K) from ERA5-Land
         - R_d: specific gas constant for dry air = 287.05 J/(kg·K)
         - Typical values: 1.0-1.3 kg/m³ (sea level ≈ 1.225 kg/m³)
+        - Calculates density per-hour then averages (consistent with wind speed method)
     """
     coll = (
         ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
@@ -217,13 +218,17 @@ def get_air_density_image(year: int = 2023):
         .select(['surface_pressure', 'temperature_2m'])
     )
 
-    mean = coll.mean()
-    T = mean.select('temperature_2m')  # Kelvin
-    P = mean.select('surface_pressure')  # Pascals
-    R_d = 287.05
+    # Calculate air density for each hour, then average
+    def calc_density(img):
+        """Calculate air density for each hourly image."""
+        T = img.select('temperature_2m')  # Kelvin
+        P = img.select('surface_pressure')  # Pascals
+        R_d = 287.05
+        rho = P.divide(T.multiply(R_d)).rename('air_density')
+        return rho
 
-    rho = P.divide(T.multiply(R_d)).rename('air_density')
-    return rho
+    hourly_rho = coll.map(calc_density)
+    return hourly_rho.mean()
 
 
 # ---------------------------------------------------------
@@ -231,12 +236,12 @@ def get_air_density_image(year: int = 2023):
 # P = 0.5 * ρ * v³
 # ---------------------------------------------------------
 
-def get_wind_power_density_image(year: int = 2023):
+def get_wind_power_density_image(year: int = 2022):
     """
     Create Earth Engine image of wind power density.
 
     Args:
-        year: Year for data retrieval (default: 2023)
+        year: Year for data retrieval (default: 2022)
 
     Returns:
         ee.Image: Single-band image with wind power density in W/m²
