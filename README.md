@@ -1,175 +1,81 @@
-#  Satelite Wind ROSPIN
+# SkyWind
 
-## 🧭 Description
+SkyWind is a collaborative geospatial intelligence tool designed to map optimal locations for wind energy infrastructure. By integrating Google Earth Engine, the application allows users to analyze specific regions for wind energy suitability based on environmental conditions and proximity to energy storage.
 
-### Overview
-Satelite Wind ROSPIN is a collaborative project focused on identifying and mapping the most suitable locations for installing wind farms. The project integrates satellite data analysis, cloud-based processing, and geospatial visualization.
+## 📋 Table of Contents
+ * [System Architecture](https://github.com/bbeatricecretu/RoSpin/edit/main/README.md#-system-architecture)
+ * [How It Works](https://github.com/bbeatricecretu/RoSpin/edit/main/README.md#%EF%B8%8F-how-it-works)
+ * [Key Features](https://github.com/bbeatricecretu/RoSpin/edit/main/README.md#-key-features)
+ * [Tech Stack](https://github.com/bbeatricecretu/RoSpin/edit/main/README.md#-tech-stack)
+ * [Data Sources](https://github.com/bbeatricecretu/RoSpin/edit/main/README.md#-data-sources)
+ * [Installation](https://github.com/bbeatricecretu/RoSpin/edit/main/README.md#-installation)
 
-### Goal
-To build an application that automatically processes satellite data using Google Earth Engine to evaluate wind energy potential across different regions. The system helps users visualize optimal wind farm sites based on environmental, geographic, and infrastructural criteria.
+## 🏗 System Architecture
+The system aggregates data from multiple satellite providers, processes it via a Python backend, and renders the results on an interactive frontend map.
 
-The user provides input such as:
-
-- A **set of coordinates** (a point and a range), **or**
-- A **city or region name**, with **minimum yearly energy output** or **minimum wind speed** requirements.
-
-Based on this input, the system generates a **list of suitable locations** for wind farms.  
-Each result in the list includes:
-
-- **Rating** — an overall suitability score for wind energy generation.  
-- **Nearest Energy Accumulation or Storage Point** — the closest facility or area for efficient energy storage or transmission.
-
-When the user selects one of the locations, an **interactive map** will open, highlighting that area along with its geographic and infrastructural context.
-
----
-
-## ⚙️ Core Components
-- 🛰 **Data Collection:** Satellite datasets (wind speed, elevation, land use, environment).  
-- ⚙️ **Data Processing:** Using **ESA SNAP**, **Google Earth Engine**, and custom Python scripts.  
-- 🧠 **Analysis Engine:** Suitability analysis, thresholds, ML-based scoring.  
-- 🌍 **Front-End Application:** Interactive map for exploring results.  
-- ☁️ **Cloud Integration:** **Google Cloud Platform** for storage, APIs, and collaboration.  
-- 🐳 **Deployment:** Docker for containerization; Kubernetes optional for orchestration.  
-- 🧩 **Collaboration:** Multi-member team (front-end, back-end, data, deployment).
-
----
-
-## 🧾 Short Summary
-> “Satelite Wind ROSPIN uses satellite data and cloud computing to map the best areas for wind farms. It combines ERA5 with Earth Engine processing, data analysis, and an interactive map deployed via Docker and Google Cloud.”
+<img width="800" height="700" alt="Untitled" src="https://github.com/user-attachments/assets/2d7922a5-528e-4617-a7c4-42d9006ce94e" />
 
 
----
 
-## ⚙️ FULL SETUP (FIRST TIME ONLY)
+## ⚙️ How It Works
 
+### 1. Define the Zone
+The user begins by defining the Area of Interest (AOI) using the sidebar inputs:
+* **Latitude & Longitude:** Sets the center point of the search.
+* **Side (km):** Defines the total width of the square zone.
+* **Grid Split:** Determines the analysis granularity (e.g., splitting the zone into a 5x5 grid).
 
-### 1️⃣ Clone the project and build containers
-```bash
-git clone https://github.com/bbeatricecretu/RoSpin.git
+![Define Zone Input](https://github.com/user-attachments/assets/b00ac48c-0dd0-429e-92d0-bbee770534ab)
+
+### 2. Automated Analysis
+Once triggered, the system divides the area into the requested grid cells. For each cell, it queries satellite data via **Google Earth Engine** to calculate:
+* **Wind Potential:** Average wind speed consistency.
+* **Terrain Suitability:** Elevation and slope feasibility.
+* **Infrastructure Context:** Distance to the nearest valid infrastructure point.
+
+### 3. Visualizing Results
+The application generates a heatmap overlay on the map, coloring zones by their suitability score. Users can click on specific grid cells to view detailed metrics and the vector path to the **Nearest Energy Accumulation Point**.
+
+![Map Visualization](https://github.com/user-attachments/assets/60be5ae7-8e48-41d2-b53b-60e43ed46eb1)
+
+## ✨ Key Features
+ * **Dynamic Grid Segmentation**: Users have full control over the size and resolution of the analysis area.
+ * **Suitability Scoring**: Automatic 0-100 rating for every grid cell based on multi-variable criteria.
+ * **Infrastructure Context**: Automatically locates and visualizes the nearest energy storage or transmission points.
+ * **Interactive Visualization**: A responsive map interface allowing deep exploration of potential sites.
+## 🛠 Tech Stack
+
+* **Frontend:** React 19, TypeScript, Vite, Leaflet, MapLibre
+* **Backend:** Python, Django 5, Google Earth Engine (GEE), Geemap
+* **Infrastructure:** PostgreSQL 15, Docker
+
+## 📡 Data Sources
+* **ERA5-Land** : Fetches hourly wind_speed, wind_direction, temperature_2m, and surface_pressure to calculate air density and wind power potential.
+* **Copernicus** : Uses the GLO-30 (30m global) dataset to analyze elevation, slope, and terrain roughness (TRI) for site feasibility.
+* **WorldCover v200** : Land Use: Analyzes land classification at 10m resolution to automatically filter out unsuitable areas (e.g., water bodies, urban zones, protected wetlands).
+
+## 🚀 Installation
+Prerequisites
+ * Docker Desktop installed
+ * Python 3.9+
+ * Google Earth Engine Account (for API authentication)
+
+Quick Start
+```
+1.
+# Install the library locally if you haven't already
+pip install earthengine-api
+
+# Run the authentication flow (opens a browser window)
+earthengine authenticate
+
+2. Clone the repository
+git clone https://github.com/bbeatricecretu/RoSpin
 cd RoSpin
-docker compose up --build
-```
-### 2️⃣ Apply migrations and create admin user
-```bash
-docker compose exec web python manage.py migrate
-docker compose exec web python manage.py createsuperuser   # (create your login)
-```
-### 3️⃣ Authenticate Google Earth Engine
-```bash
-docker compose exec web bash
-earthengine authenticate      # follow the link → log in → copy verification code
-exit
-```
-### 4️⃣ Generate region zones
-```bash
-python main.py    # ✅ region_zones.geojson generated successfully.
-```
-### 5️⃣ Create first region in Django shell
-```bash
-docker compose exec web python manage.py shell
-from analysis.models import Point, Region
-center = Point.objects.create(lat=46.77 , lon=23.62)
-region = Region.objects.create(center=center)
-print(region.id)   # (should show a number, e.g. 1)
-exit()
-```
-### 6️⃣ Generate zones and fetch GEE data
-```bash
-docker compose exec web python manage.py generates_zones
-docker compose exec web python manage.py fetch_gee_data
-```
-### 7️⃣ Register models in the admin panel
-```python
-# (open RoSpin/analysis/admin.py and add:)
- from django.contrib import admin
- from .models import Region, Zone, Point, Infrastructure, EnergyStorage
- admin.site.register(Region)
- admin.site.register(Zone)
- admin.site.register(Point)
- admin.site.register(Infrastructure)
- admin.site.register(EnergyStorage)
-```
 
-### 8️⃣ Restart the containers
-```bash
-docker compose down
-docker compose up
-```
-### 9️⃣ Open the app in your browser
-Go to http://localhost:8000/admin
- Log in with the user you created earlier (e.g., sefu / rospin2025)
+3. Run with Docker
+docker-compose up --build
 
----
-
- ## 🔁 RELOAD / UPDATE (EACH TIME YOU WORK) 
-
-### Option 1 — Update your local code
-```bash
-git pull origin main https://github.com/bbeatricecretu/RoSpin.git
-```
-
-### Option 2 — If you want a clean restart (delete and re-clone)
-```bash
-rm -rf RoSpin
-git clone git https://github.com/bbeatricecretu/RoSpin.git
-cd RoSpin
-docker compose up --build
-```
-
-### Restart the containers (to reload the latest version)
-```bash
-docker compose down
-docker compose up
-```
-
-### Open the admin panel again
-👉 http://localhost:8000/admin
-
----
-
-## 🌿 --- GIT WORKFLOW (ALL COMMANDS) ---
----
-### 1️⃣ Clone the repository (first time)
-```bash
-git clone https://github.com/bbeatricecretu/RoSpin.git
-cd RoSpin
-```
-
-### 2️⃣ Check current branch
-```bash
-git branch
-```
-
-### 3️⃣ Switch to an existing branch
-```bash
-git checkout branch-name
-```
-
-### 4️⃣ Create and switch to a new branch
-```bash
-git checkout -b new-branch-name
-```
-### 5️⃣ Pull latest updates from the main branch
-```bash
-git pull origin main
-```
-### 6️⃣ Stage all your changes
-```bash
-git add .
-```
-### 7️⃣ Commit your changes with a message
-```bash
-git commit -m "Describe what you changed"
-```
-### 8️⃣ Push your changes to a specific branch
-```bash
-git push origin branch-name
-```
-### 9️⃣ If it's a new branch (first push)
-```bash
-git push -u origin new-branch-name
-```
-### 🔁 Update local project with latest code (daily use)
-```bash
-git pull origin main
+4. Access the App
+Open your browser and navigate to http://localhost:5173
 ```
