@@ -6,6 +6,7 @@ Satellite Wind ROSPIN is a collaborative geospatial intelligence tool designed t
  * Tech Stack
  * Data Sources
  * Installation
+
 🏗 System Architecture
 The system aggregates data from multiple satellite providers, processes it via a Python backend, and renders the results on an interactive frontend map.
 > ![PLACEHOLDER: Architecture Diagram]
