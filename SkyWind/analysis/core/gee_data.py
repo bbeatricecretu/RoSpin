@@ -75,23 +75,26 @@ def get_avg_wind_speeds(centers, year: int = 2023):
         .filterDate(f'{year}-01-01', f'{year}-12-31')
     )
 
-    mean = coll.mean()
+    # FIXED: Calculate speed per hour FIRST, then average
+    def calc_speed(img):
+        """Calculate wind speed for each hourly image."""
+        u = img.select('u_component_of_wind_10m')
+        v = img.select('v_component_of_wind_10m')
+        speed_img = u.pow(2).add(v.pow(2)).sqrt().rename('wind_speed')
+        return img.addBands(speed_img)
 
-    # Wind speed √(u² + v²)
-    speed = mean.expression(
-        'sqrt(u*u + v*v)',
-        {
-            'u': mean.select('u_component_of_wind_10m'),
-            'v': mean.select('v_component_of_wind_10m'),
-        }
-    ).rename('wind_speed')
+    coll_with_speed = coll.map(calc_speed)
+    
+    # Average the speeds (not the components)
+    speed = coll_with_speed.select('wind_speed').mean()
 
-    # Wind direction atan2(u, v) -> degrees
-    direction = mean.expression(
+    # For direction, use mean components (this is acceptable for direction)
+    mean_components = coll.mean()
+    direction = mean_components.expression(
         '(180 / 3.14159265) * atan2(v, u)',
         {
-            'u': mean.select('u_component_of_wind_10m'),
-            'v': mean.select('v_component_of_wind_10m'),
+            'u': mean_components.select('u_component_of_wind_10m'),
+            'v': mean_components.select('v_component_of_wind_10m'),
         }
     ).rename('wind_dir')
 

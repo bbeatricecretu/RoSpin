@@ -239,12 +239,29 @@ class Command(BaseCommand):
                         z.save()
                         continue
 
+                    # FIX: Convert histogram to int keys and float values
+                    # GEE returns string keys like "40", "50"
+                    hist_clean = {}
+                    for k, v in hist.items():
+                        try:
+                            class_id = int(float(k))  # Handle "40.0" or "40"
+                            count = float(v)
+                            hist_clean[class_id] = count
+                        except (ValueError, TypeError):
+                            continue
+
+                    if not hist_clean:
+                        z.land_type = ""
+                        z.save()
+                        continue
+
                     # Find max frequency count
-                    max_count = max(hist.values())
+                    max_count = max(hist_clean.values())
 
                     # Get ALL classes with that max count
                     dominant_classes = [
-                        int(k) for k, v in hist.items() if v == max_count
+                        class_id for class_id, count in hist_clean.items()
+                        if count == max_count
                     ]
 
                     # Convert class IDs into labels
