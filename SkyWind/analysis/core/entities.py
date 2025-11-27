@@ -97,7 +97,7 @@ class Region:
 
     def __repr__(self):
         return (f"{self.center}, {self.A}, {self.B}, {self.C}")
-    
+
     def generate_corners(self, side_km: float = 20.0):
 
         half_km = side_km / 2
@@ -117,7 +117,7 @@ class Region:
         self.D = Point(self.center.lat + delta_lat, self.center.lon - delta_lon)  # upper-left
 
         return self  # optional: allows chaining like region.generate_corners().generate_grid()
-    
+
     def generate_grid(self, n: int = 10):
 
         if not all([self.A, self.B, self.C, self.D]):
