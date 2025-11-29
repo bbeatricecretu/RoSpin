@@ -10,48 +10,48 @@ from analysis.core.gee_data import (
     WORLD_COVER_CLASSES,
 )
 from analysis.core.wind import compute_wind_rose
+'''
+# ---------------------------------------------------------
+!!! gee_service use gee_data and wind
+# ---------------------------------------------------------
+ZONE:
+    - wind direction -> compute_wind_per_zone()
+    - avg_wind_speed -> compute_wind_per_zone()
+    - min_alt, max_alt, roughness -> compute_altitude_roughness_dem()
+    - air_density -> compute_air_density()
+    - power_avg -> compute_WIND_power_density()
+    - land_type -> compute_land_cover()
+    - potential -> compute_potential()
 
+REGION:
+    - avg_temperature -> compute_temperature()
+    - wind_rose -> compute_region_metrics()
+    - rating -> compute_region_metrics() ---> renuntat la unul dintre ele
+    - avg_potential -> compute_region_metrics() ---> renuntat la unul dintre ele
+    - most_suitable_energy_storage -> (not implemented)
+'''
 
-EXCLUDED_LAND = {
-    "Built-up",
-    "Permanent water",
-    "Herbaceous wetland",
-    "Snow / ice",
-    "Mangroves",
-}
-
-
-def compute_temperature(region):
-    """
-    STEP 1: Compute average annual temperature at region center.
-    
-    Source: ERA5-Land Hourly Reanalysis (ECMWF)
-    Resolution: ~11km (1000m scale)
-    
-    What: Mean 2m air temperature over full year (°C)
-    Why: Affects air density calculation and equipment performance
-    Expected: -50°C to +50°C depending on location
-    """ 
-    temp = get_avg_temperature(region.center.lat, region.center.lon)
-    region.avg_temperature = temp
-    region.save()
-    return temp
-
+# ---------------------------------------------------------
+# ZONE ATTRIBUTES
+# ---------------------------------------------------------
 
 def compute_wind_per_zone(zones):
     """
     STEP 2: Compute wind speed and direction for each zone.
     
-    Source: ERA5-Land u/v wind components at 10m height
-    Resolution: ~11km (1000m scale)
-    
     What: 
         - avg_wind_speed: √(u² + v²) averaged over year (m/s)
         - wind_direction: Meteorological direction 0-360° (0°=North)
     
-    Why: Primary driver of power generation (P ∝ v³)
-    Expected: 3-8 m/s for viable sites, >6 m/s excellent
+    Why:
+        - wind speed: primary driver of power generation (P ∝ v³)
+        - wind direction: important for turbine alignment and layout and windrose
+
+    Source: ERA5 u/v wind components at 100m height (typical hub height)
+    Resolution: ~25km
     
+    Expected: 5-12 m/s for viable sites at 100m, >9 m/s excellent
+
     Note: Speed calculated per-hour first to avoid cancellation (fixed bug)
     """
     centers = []
@@ -77,9 +77,6 @@ def compute_altitude_roughness_dem(zones, fc, zone_map):
     """
     STEP 3: Compute terrain metrics from Digital Elevation Model.
     
-    Source: Copernicus GLO-30 DEM
-    Resolution: 30m
-    
     What:
         - min_alt: Minimum elevation in zone (meters above sea level)
         - max_alt: Maximum elevation in zone (meters)
@@ -89,6 +86,9 @@ def compute_altitude_roughness_dem(zones, fc, zone_map):
         - Altitude affects air density (higher = thinner air = less power)
         - Roughness indicates turbulent flow (>20 = poor performance)
         - Flat terrain (roughness <5) = ideal for turbines
+            
+    Source: Copernicus GLO-30 DEM
+    Resolution: 30m
     
     Expected:
         - Altitude: 0-3000m for most sites
@@ -118,6 +118,9 @@ def compute_altitude_roughness_dem(zones, fc, zone_map):
 def compute_air_density(zones, fc, zone_map):
     """
     STEP 4: Compute air density using ideal gas law.
+
+    What: Air density in kg/m³
+    Why: Directly affects power output (P = 0.5 × ρ × v³ × A)
     
     Source: ERA5-Land surface pressure & 2m temperature
     Resolution: ~11km (1000m scale)
@@ -125,9 +128,6 @@ def compute_air_density(zones, fc, zone_map):
         - P: surface pressure (Pa)
         - T: temperature (K)
         - R_d: 287.05 J/(kg·K) - dry air constant
-    
-    What: Air density in kg/m³
-    Why: Directly affects power output (P = 0.5 × ρ × v³ × A)
     
     Expected:
         - Sea level: ~1.225 kg/m³
@@ -148,23 +148,23 @@ def compute_air_density(zones, fc, zone_map):
         z.save()
 
 
-def compute_power_density(zones, fc, zone_map):
+def compute_WIND_power_density(zones, fc, zone_map):
     """
     STEP 5: Compute wind power density.
-    
-    Source: ERA5-Land wind components + calculated air density
-    Resolution: ~11km (1000m scale)
-    Formula: P = 0.5 × ρ × v³ (Betz's law)
-    
+     
     What: Available wind power per square meter (W/m²)
     Why: Key metric for site viability - predicts energy production
     
-    Wind Power Classes:
-        - <100 W/m²: Poor (Class 1)
-        - 100-150: Marginal (Class 2)
-        - 150-200: Fair (Class 3)
-        - 200-400: Good (Class 4-5)
-        - >400: Excellent (Class 6-7)
+    Source: ERA5 100m wind + ERA5-Land surface pressure/temperature
+    Resolution: ~25km for wind, ~11km for surface data
+    Formula: P = 0.5 × ρ × v³ (Betz's law)
+    
+    Wind Power Classes (at 100m height):
+        - <300 W/m²: Poor (Class 1)
+        - 300-500: Marginal (Class 2)
+        - 500-800: Fair (Class 3)
+        - 800-1200: Good (Class 4-5)
+        - >1200: Excellent (Class 6-7)
     
     Note: Calculated per-hour then averaged to preserve cubic relationship
     """
@@ -237,6 +237,14 @@ def compute_land_cover(zones, fc, zone_map):
         z.save()
 
 
+EXCLUDED_LAND = {
+    "Built-up",
+    "Permanent water",
+    "Herbaceous wetland",
+    "Snow / ice",
+    "Mangroves",
+}
+
 def compute_potential(zones):
     """
     STEP 7: Calculate overall site suitability score.
@@ -268,6 +276,27 @@ def compute_potential(zones):
         z.potential = round(100 * (0.7 * wpd + 0.3 * rough) * ok_land, 1)
         z.save()
 
+# ---------------------------------------------------------
+# REGION ATTRIBUTES
+# ---------------------------------------------------------
+
+def compute_temperature(region):
+    """
+    STEP 1: Compute average annual temperature at region center.
+    
+    Source: ERA5-Land Hourly Reanalysis (ECMWF)
+    Resolution: ~11km (1000m scale)
+    
+    What: Mean 2m air temperature over full year (°C)
+    Why: Affects air density calculation and equipment performance
+    Expected: -50°C to +50°C depending on location
+    """ 
+    temp = get_avg_temperature(region.center.lat, region.center.lon)
+    region.avg_temperature = temp
+    region.save()
+    return temp
+
+
 
 def compute_region_metrics(region, zones):
     """
@@ -288,7 +317,9 @@ def compute_region_metrics(region, zones):
     region.rating = int(region.avg_potential * 10)
     region.save()
 
-
+# ---------------------------------------------------------
+# FULL PIPELINE
+# ---------------------------------------------------------
 def compute_gee_for_grid(grid: RegionGrid):
     """
     FULL 8-STEP PIPELINE: Fetch all Google Earth Engine data for a grid.
@@ -337,7 +368,7 @@ def compute_gee_for_grid(grid: RegionGrid):
     # Steps 3-6: Spatial computations
     compute_altitude_roughness_dem(zones, fc, zone_map)
     compute_air_density(zones, fc, zone_map)
-    compute_power_density(zones, fc, zone_map)
+    compute_WIND_power_density(zones, fc, zone_map)
     compute_land_cover(zones, fc, zone_map)
 
     # Step 7: Potential scoring
