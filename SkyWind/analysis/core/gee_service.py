@@ -12,52 +12,6 @@ from analysis.core.gee_data import (
 from analysis.core.wind import compute_wind_rose
 
 
-# ------------------------------------------------------------------
-# Wind vertical profile: 10 m -> 100 m using power law
-# ------------------------------------------------------------------
-
-def estimate_alpha(land_type: str) -> float:
-    """
-    Estimate wind shear exponent α for the 10m -> 100m conversion
-    based on dominant land cover in the zone.
-
-    Typical values:
-        - 0.10–0.12: very smooth (sea, lakes, water)
-        - 0.14–0.16: open terrain (grassland, cropland, shrubland)
-        - 0.18–0.22: hilly / mixed / forest
-        - 0.25+: urban / very rough / built-up
-        
-    Args:
-        land_type: Land cover classification string
-        
-    Returns:
-        float: Shear exponent α (0.10-0.25)
-    """
-    if not land_type:
-        return 0.18  # generic default for onshore
-
-    lt = land_type.lower()
-
-    # water / sea / lakes
-    if "water" in lt or "sea" in lt or "ocean" in lt:
-        return 0.11
-
-    # open terrain: cropland, grassland, shrubland
-    if "grassland" in lt or "cropland" in lt or "shrubland" in lt:
-        return 0.16
-
-    # forested areas
-    if "forest" in lt or "tree" in lt:
-        return 0.22
-
-    # built-up / urban
-    if "built-up" in lt or "urban" in lt or "settlement" in lt:
-        return 0.25
-
-    # fallback for mountains / mixed / bare
-    return 0.18
-
-
 '''
 # ---------------------------------------------------------
 !!! gee_service use gee_data and wind
@@ -88,7 +42,7 @@ def compute_wind_per_zone(zones):
     STEP 2: Compute wind speed and direction for each zone.
     
     What: 
-        - avg_wind_speed: Wind speed at 100m height (m/s) - extrapolated from 10m
+        - avg_wind_speed: Wind speed at 100m height (m/s) - direct from ERA5
         - wind_direction: Meteorological direction 0-360° (0°=North)
     
     Why:
@@ -96,15 +50,14 @@ def compute_wind_per_zone(zones):
         - 100m height: typical turbine hub height (80-120m)
         - wind direction: important for turbine alignment and layout
 
-    Source: ERA5-Land u/v wind components at 10m height
-    Method: Power law extrapolation v(100m) = v(10m) × (100/10)^α
-    Resolution: ~11km
+    Source: ERA5 u/v wind components at 100m height
+    Resolution: ~25km (ERA5 coarser than ERA5-Land but has 100m data)
     
     Expected: 5-12 m/s at 100m for viable sites, >9 m/s excellent
 
     Note: 
         - Speed calculated per-hour first to avoid cancellation (fixed bug)
-        - Shear exponent α estimated from land cover (0.11-0.25)
+        - ERA5 directly provides 100m wind (no extrapolation needed)
     """
     centers = []
     for z in zones:
@@ -120,17 +73,10 @@ def compute_wind_per_zone(zones):
             z.avg_wind_speed = 0.0
             z.wind_direction = 0.0
         else:
-            # ERA5-Land gives us annual mean wind at 10 m
-            v10 = float(data.get("speed", 0.0) or 0.0)
+            # ERA5 already gives us annual mean wind at 100m
+            v100 = float(data.get("speed", 0.0) or 0.0)
 
-            # Choose shear exponent based on land type
-            alpha = estimate_alpha(z.land_type or "")
-
-            # Power-law vertical extrapolation: v_100 = v_10 * (100/10)^alpha
-            # 100/10 = 10  ->  v_100 = v_10 * 10^alpha
-            v100 = v10 * (10 ** alpha)
-
-            # Store the 100 m value as the main avg_wind_speed used in the app
+            # Store the 100m value directly (no scaling needed)
             z.avg_wind_speed = round(v100, 2)
 
             # Keep direction as-is (height doesn't change mean direction much)

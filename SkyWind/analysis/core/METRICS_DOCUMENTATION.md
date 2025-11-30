@@ -1,7 +1,7 @@
 # Zone Metrics Documentation
 
 **Project**: RoSpin - Wind Turbine Site Analysis  
-**Last Updated**: November 27, 2025
+**Last Updated**: November 30, 2025
 
 This document provides detailed technical documentation for all metrics computed for each zone in the wind farm analysis system.
 
@@ -348,7 +348,7 @@ For a zone with:
 Wind speed is the fundamental driver of wind energy production. These metrics characterize the wind resource at each zone, providing the basis for all power calculations. Wind data is derived from **ERA5 reanalysis**, offering validated hourly measurements averaged over a full year.
 
 **Function**: `compute_wind_per_zone()`  
-**Source**: ERA5 (ECMWF Reanalysis)  
+**Source**: ERA5 (ECMWF Reanalysis) - Direct 100m measurements  
 **Resolution**: ~25 km  
 **Temporal**: Full year 2022 (8,760 hourly measurements)  
 **Height**: 100 meters above ground level (typical turbine hub height)
@@ -376,7 +376,7 @@ Power ∝ v³
 - Doubling wind speed → **8× more power**
 
 For each zone, `avg_wind_speed` is:
-- **Annual average wind speed** at 100m height (typical hub height) over the whole zone
+- **Annual average wind speed** at 100m height (typical hub height) measured directly from ERA5
 - Direct measurement at turbine operational height - no extrapolation needed!
 - The foundation for calculating `power_avg` (P = 0.5 × ρ × v³)
 
@@ -386,7 +386,7 @@ For each zone, `avg_wind_speed` is:
 - ⚠️ **6.0-7.5 m/s**: Marginal (Class 2)
 - ❌ **<6.0 m/s**: Poor, not commercial (Class 1)
 
-**Advantage: No height extrapolation uncertainty** - values are measured directly at operational height!
+**Advantage: No height extrapolation uncertainty** - values are measured directly at operational height from ERA5!
 
 #### What It Measures
 
@@ -486,35 +486,19 @@ This was a **CRITICAL BUG** that has been fixed.
 
 #### Height Extrapolation (No Longer Needed!)
 
-**NEW: Direct 100m measurements eliminate extrapolation!**
+**We use direct ERA5 100m measurements - no extrapolation required!**
 
-Previously, we had to extrapolate from 10m using power law:
+ERA5 provides wind data directly at 100m height (`u_component_of_wind_100m`, `v_component_of_wind_100m`), which is the standard hub height for modern wind turbines (80-120m).
 
-**Old Formula (no longer used):**
-```
-v(h) = v(h_ref) × (h / h_ref)^α
-```
-
-Where:
-- **h_ref** = 10m (old ERA5-Land reference height)
-- **h** = Hub height (typically 80-120m)
-- **α** = Shear exponent (0.10-0.25, typically 0.14) - **terrain dependent!
-
-**Old problem - Shear exponent uncertainty:**
-- **Smooth water (offshore)**: α ≈ 0.10 → 10% error
-- **Open plains**: α ≈ 0.14 → 14% error  
-- **Farmland with obstacles**: α ≈ 0.20 → 20% error
-- **Forest/urban**: α ≈ 0.25-0.30 → 30% error
-
-**NEW SOLUTION: Measure directly at 100m!**
+**Advantages of direct 100m measurements:**
 - ✅ No shear exponent assumption needed
-- ✅ No terrain roughness uncertainty
+- ✅ No terrain roughness uncertainty  
 - ✅ Direct operational height data
-- ✅ ±5% accuracy vs. ±15-30% with extrapolation
+- ✅ ±5% accuracy vs. ±15-30% with extrapolation from 10m
 
 **For turbines at different heights:**
 
-If you need values at 80m or 120m instead of 100m:
+If you need values at 80m or 120m instead of 100m, only minor adjustments needed:
 
 | Hub Height | Adjustment from 100m | Typical Factor |
 |------------|----------------------|----------------|
@@ -522,38 +506,44 @@ If you need values at 80m or 120m instead of 100m:
 | 100m | v(100) = measured directly | 1.00× (baseline) |
 | 120m | v(120) = v(100) × (120/100)^0.14 | 1.03× (+3%) |
 
-**Small adjustments** (2-3%) vs. old 35-40% extrapolation from 10m!
+**Small adjustments** (2-3%) vs. old 35-40% extrapolation from 10m surface measurements!
 
 #### Real-World Validation
 
-**Your Zone Data (NEW - with 100m measurements):**
+**Example Zone Data (with ERA5 100m measurements):**
 ```
-OLD: avg_wind_speed: 4.09 m/s @ 10m
-NEW: avg_wind_speed: [To be computed] @ 100m (expect 5.5-6.5 m/s)
-Location: Romanian plateau, 989m altitude
+avg_wind_speed: 6.49 m/s @ 100m (Constanța coastal)
+avg_wind_speed: 3.34 m/s @ 100m (Cluj inland)
+Location: Romanian sites at various altitudes
 ```
 
-**Expected improvement:**
+**Validation:**
 
-1. **More realistic for turbine operations:**
-   - Old 10m: 4.09 m/s → extrapolated to ~5.5 m/s @ 80m (**±20% uncertainty**)
-   - New 100m: Direct measurement 5.5-6.5 m/s (**±5% accuracy**)
-   - Better represents actual turbine conditions!
+1. **Realistic for turbine operations:**
+   - Constanța: 6.49 m/s @ 100m → Marginal to Fair (Class 2)
+   - Cluj: 3.34 m/s @ 100m → Poor (Class 1)
+   - Direct hub-height measurement (**±5% accuracy**)
+   - Represents actual turbine conditions!
 
 2. **Comparison with power density:**
    ```
-   OLD (10m extrapolated):
-   Power: 55.3 W/m² @ 10m → ~330 W/m² @ 100m
+   Constanța:
+   Wind: 6.49 m/s @ 100m
+   Power: 284 W/m² @ 100m
+   Check: 0.5 × 1.232 × (6.49)³ = 168 W/m² (base calculation)
+   Actual 284 W/m² captures hourly wind variability ✅
    
-   NEW (100m direct):
-   Expected: 300-400 W/m² @ 100m (direct calculation)
-   More accurate for site assessment!
+   Cluj:
+   Wind: 3.34 m/s @ 100m  
+   Power: 52 W/m² @ 100m
+   Check: 0.5 × 1.186 × (3.34)³ = 22 W/m² (base calculation)
+   Actual 52 W/m² captures hourly wind variability ✅
    ```
 
-3. **Bug fix validation (already completed):**
+3. **Bug fix validation (completed):**
    - Before: 0.5-0.7 m/s (component cancellation bug) ❌
-   - After fix: 4.09 m/s @ 10m (realistic) ✅
-   - Now: Direct 100m measurement (even better!) ✅✅
+   - After fix: Realistic values at 100m (3-7 m/s) ✅
+   - Direct 100m measurement eliminates extrapolation error ✅✅
 
 #### Comparison with Known Wind Farms
 
@@ -591,21 +581,19 @@ Notes:
 - Economically successful (33% CF)
 ```
 
-**Example 3: Your Zone (Romania) - To Be Reassessed**
+**Example 3: Romanian Sites (Current System)**
 ```
-Location: Dobrogea plateau
-Altitude: 989m
+Location: Various Romanian sites
+Altitude: 12-1632m
 
-OLD DATA: Wind speed @ 10m: 4.09 m/s (extrapolated to ~5.5 m/s @ 80m)
-NEW DATA: Wind speed @ 100m: [To be computed - expect 5.5-6.5 m/s]
-Old class: 1 (Poor)
-Expected new class: 2 (Marginal) - more accurate!
+Constanța (coastal): 6.49 m/s @ 100m → Class 2 (Marginal)
+Cluj (inland): 3.34 m/s @ 100m → Class 1 (Poor)
 
 Notes:
-- Inland plateau, some shelter
-- Continental climate (variable winds)
-- Below commercial threshold
-- Suitable only for small-scale projects
+- Direct ERA5 100m measurements
+- Coastal site shows expected higher wind
+- Inland plateau shows typical low continental wind
+- Accurate assessment for Romanian wind resources
 ```
 
 **Example 4: Black Forest (Germany) - Very Poor**
@@ -716,15 +704,15 @@ Wind speed also varies by time of day:
 
 #### Known Limitations & Considerations
 
-✅ **Height Reference - IMPROVED!**
-- **NEW**: ERA5 provides 100m winds (hub height)
-- **OLD**: ERA5-Land at 10m required extrapolation
-- **Benefit**: Direct operational height measurement
-- **Minor adjustment**: ±2-3% for 80m or 120m turbines (vs. ±35-40% from 10m)
+✅ **Height Reference - OPTIMAL!**
+- **Current**: ERA5 provides 100m winds (hub height)
+- **Direct operational height measurement**
+- **No extrapolation needed** - eliminates 15-30% uncertainty
+- **Minor adjustment**: ±2-3% for 80m or 120m turbines if needed
 
 ⚠️ **Resolution:**
 - ERA5: ~25km grid spacing (coarser than ERA5-Land's 11km)
-- **Trade-off**: Coarser resolution BUT much more relevant height
+- **Trade-off**: Coarser resolution BUT direct hub-height measurements
 - Cannot capture micro-scale effects:
   - Valley channeling
   - Ridge acceleration
@@ -765,10 +753,10 @@ Wind speed also varies by time of day:
 | **9.5-11.0 m/s** | 6-7 | ✅ Excellent | High profitability |
 | **>11.0 m/s** | 7 | ✅ World-class | Premium site |
 
-**Your site (with new 100m data):**
-- OLD: 4.09 m/s @ 10m → Class 1 (Poor)
-- NEW: Expected 5.5-6.5 m/s @ 100m → Class 1-2 (Poor to Marginal)
-- More accurate assessment with direct hub-height measurement!
+**Your site (with ERA5 100m data):**
+- Constanța: 6.49 m/s @ 100m → Class 2 (Marginal)
+- Cluj: 3.34 m/s @ 100m → Class 1 (Poor)
+- Direct hub-height measurement provides accurate assessment!
 
 Possible uses:
 - Small community turbines (5-50 kW) - marginal
@@ -1197,10 +1185,9 @@ potential = 70% × wpd + 30% × roughness_penalty
 - ⚠️ **300-500 W/m²**: Marginal - careful analysis needed (Class 2)
 - ❌ **<300 W/m²**: Below commercial threshold (Class 1)
 
-**Your site (with new 100m data):**
-- OLD: 55 W/m² @ 10m → extrapolated ~330 W/m² @ 100m
-- NEW: Direct measurement @ 100m (expect 300-400 W/m²)
-- More accurate assessment - likely Class 2 (Marginal)
+**Your site (with ERA5 100m data):**
+- Constanța: 6.49 m/s → 284 W/m² → Marginal viability
+- Cluj: 3.34 m/s → 52 W/m² → Below commercial threshold
 
 #### What It Measures
 The amount of kinetic energy in the wind available for conversion to electricity per square meter of swept area. This represents the **raw power available** before turbine efficiency losses.
@@ -1389,45 +1376,47 @@ Still Class 1-2 (marginal) ⚠️
 
 #### Real-World Validation
 
-**Your Zone Data:**
+**Current Zone Data:**
 ```
-Wind speed @ 10m: 4.09 m/s
-Air density: 1.051 kg/m³
-Power density: 55.3 W/m²
+Constanța (coastal):
+Wind speed: 6.49 m/s @ 100m
+Air density: 1.232 kg/m³
+Power density: 284 W/m²
+
+Cluj (inland):
+Wind speed: 3.34 m/s @ 100m  
+Air density: 1.186 kg/m³
+Power density: 52 W/m²
 ```
 
 **Manual verification:**
 ```
-Simple calculation (average cubed):
-P = 0.5 × 1.051 × 4.09³
-P = 0.5 × 1.051 × 68.42
-P = 35.95 W/m² ❌ Too low!
+Constanța simple calculation:
+P = 0.5 × 1.232 × 6.49³
+P = 0.5 × 1.232 × 273.4
+P = 168 W/m²
 
-Actual value: 55.3 W/m²
-Ratio: 55.3 / 35.95 = 1.54× higher
+Actual value: 284 W/m²
+Ratio: 284 / 168 = 1.69× higher
 
-Why? Wind variability!
+Cluj simple calculation:
+P = 0.5 × 1.186 × 3.34³
+P = 0.5 × 1.186 × 37.3
+P = 22 W/m²
+
+Actual value: 52 W/m²
+Ratio: 52 / 22 = 2.36× higher
+
+Why higher? Wind variability captured by hourly calculation!
 ```
 
 **Weibull Distribution Effect:**
 
 Real wind follows Weibull distribution (k≈2 typical):
-- Mean speed: 4.09 m/s
-- Speed variance creates higher mean of cubes
-- Ratio of mean(v³) to mean(v)³ ≈ 1.5-2.0×
-
-**Empirical validation formula:**
-```
-P ≈ 0.6 × v³ × ρ_standard
-
-For your site:
-P = 0.6 × 4.09³ × 1.225
-P = 0.6 × 68.42 × 1.225
-P = 50.3 W/m²
-
-Your calculated: 55.3 W/m²
-Difference: 10% (within expected variance) ✅
-```
+- Hourly wind speed variance creates higher mean of cubes
+- Ratio of mean(v³) to mean(v)³ ≈ 1.5-2.4×
+- Strong wind hours contribute disproportionately (cubic relationship)
+- Per-hour calculation captures this effect correctly ✅
 
 #### Comparison with Known Wind Farms
 
@@ -1467,25 +1456,25 @@ Annual production: 2,260 GWh/year
 Status: ✅ Economically viable
 ```
 
-**Example 3: Your Zone (Romania) - Poor**
+**Example 3: Romanian Sites (Current System)**
 ```
-Location: Dobrogea plateau
-Altitude: 989m
+Constanța (coastal):
+Wind speed @ 100m: 6.49 m/s
+Air density: 1.232 kg/m³ (sea level)
+Power density @ 100m: 284 W/m²
+Wind class: 2 (Marginal)
 
-Wind speed @ 10m: 4.09 m/s
-Air density: 1.051 kg/m³
-Power density @ 10m: 55.3 W/m²
-Power density @ 80m: ~136 W/m² (estimated)
+Cluj (inland):
+Wind speed @ 100m: 3.34 m/s
+Air density: 1.186 kg/m³ (higher altitude)
+Power density @ 100m: 52 W/m²
 Wind class: 1 (Poor)
 
-Estimated capacity factor @ 80m: 15-18%
-Status: ⚠️ Below commercial threshold
-
-Possible use cases:
-- Small-scale community turbines
-- Research/demonstration projects
-- Hybrid systems (wind + solar)
-- NOT suitable for commercial wind farm
+Notes:
+- Direct ERA5 100m measurements
+- Coastal advantage clearly visible
+- Below commercial threshold (need 400+ W/m²)
+- Suitable for small-scale projects only
 ```
 
 **Example 4: Alpine Pass (Switzerland) - Mountain Site**
