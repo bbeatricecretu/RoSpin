@@ -19,6 +19,8 @@ The system aggregates data from multiple satellite providers, processes it via a
 
 ## ⚙️ How It Works
 
+
+
 ### 1. Define the Zone
 The user begins by defining the Area of Interest (AOI) using the sidebar inputs:
 * **Latitude & Longitude:** Sets the center point of the search.
