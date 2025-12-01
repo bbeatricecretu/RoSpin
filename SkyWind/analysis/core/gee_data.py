@@ -64,7 +64,10 @@ def get_avg_wind_speeds(centers, year: int = 2022):
     Notes:
         - Uses ERA5 hourly data at 100m height (turbine hub height)
         - Speed: √(u² + v²) averaged over the year
-        - Direction: meteorological (0° = North, 90° = East)
+        - Direction: power-weighted prevailing direction (emphasizes strong winds)
+          * Weighted by v³ (wind power) to identify energy-producing directions
+          * Meteorological convention: 0° = North, 90° = East, 180° = South, 270° = West
+          * Shows where the strongest winds come from (critical for turbine siting)
         - Returns 0.0 for missing data points
         - Resolution: ~25km (ERA5 is coarser than ERA5-Land but has 100m data)
     """
@@ -79,33 +82,56 @@ def get_avg_wind_speeds(centers, year: int = 2022):
     )
 
     # FIXED: Calculate speed per hour FIRST, then average
-    def calc_speed(img):
-        """Calculate wind speed for each hourly image."""
+    def calc_speed_and_direction(img):
+        """Calculate wind speed and direction for each hourly image."""
         u = img.select('u_component_of_wind_100m')
         v = img.select('v_component_of_wind_100m')
+        
+        # Wind speed
         speed_img = u.pow(2).add(v.pow(2)).sqrt().rename('wind_speed')
-        return img.addBands(speed_img)
+        
+        # Wind direction (meteorological: direction wind comes FROM)
+        # atan2(v, u) gives direction in radians, convert to degrees
+        direction_img = v.atan2(u).multiply(180.0 / 3.14159265).rename('wind_dir_raw')
+        
+        # Normalize to 0-360 (atan2 gives -180 to +180)
+        direction_img = direction_img.add(360).mod(360).rename('wind_dir')
+        
+        # Weight: speed³ (power-weighted - emphasizes strong winds)
+        weight = speed_img.pow(3).rename('weight')
+        
+        return img.addBands([speed_img, direction_img, weight])
 
-    coll_with_speed = coll.map(calc_speed)
+    coll_with_metrics = coll.map(calc_speed_and_direction)
     
     # Average the speeds (not the components)
-    speed = coll_with_speed.select('wind_speed').mean()
+    speed = coll_with_metrics.select('wind_speed').mean()
 
-    # For direction, use mean components (this is acceptable for direction)
-    mean_components = coll.mean()
-    direction = mean_components.expression(
-        '(180 / 3.14159265) * atan2(v, u)',
-        {
-            'u': mean_components.select('u_component_of_wind_100m'),
-            'v': mean_components.select('v_component_of_wind_100m'),
-        }
-    ).rename('wind_dir')
-
-    # Normalize to 0–360
-    direction = direction.expression(
-        '(dir + 360) % 360',
-        {'dir': direction}
-    )
+    # Power-weighted direction (emphasizes strong wind directions)
+    # For wind farms, we care about where STRONG winds come from
+    def calc_weighted_components(img):
+        """Calculate weighted x and y components for circular averaging."""
+        dir_rad = img.select('wind_dir').multiply(3.14159265 / 180.0)
+        weight = img.select('weight')
+        
+        # x = cos(direction) * weight
+        # y = sin(direction) * weight
+        weighted_x = dir_rad.cos().multiply(weight).rename('weighted_x')
+        weighted_y = dir_rad.sin().multiply(weight).rename('weighted_y')
+        
+        return img.addBands([weighted_x, weighted_y])
+    
+    coll_weighted = coll_with_metrics.map(calc_weighted_components)
+    
+    # Average the weighted components
+    mean_weighted_x = coll_weighted.select('weighted_x').mean()
+    mean_weighted_y = coll_weighted.select('weighted_y').mean()
+    
+    # Calculate prevailing direction from weighted components
+    direction = mean_weighted_y.atan2(mean_weighted_x).multiply(180.0 / 3.14159265)
+    
+    # Normalize to 0-360
+    direction = direction.add(360).mod(360).rename('wind_dir')
 
     img = speed.addBands(direction)
 

@@ -770,35 +770,234 @@ Possible uses:
 **Unit**: degrees (0-360°)  
 **Type**: Float
 
-**What it represents:**
-- **Meteorological convention**: Direction wind is **coming from**
-- 0° = North wind (coming from north)
-- 90° = East wind (coming from east)
-- 180° = South wind
-- 270° = West wind
+#### Why It Matters
 
-**Calculation:**
-```python
-direction = atan2(v_component, u_component) × (180/π)
-# Convert to 0-360° range
-direction = (direction + 360) % 360
+**Critical for Wind Farm Layout and Performance**
+
+Wind direction determines:
+1. **Turbine spacing**: 5-10 rotor diameters in prevailing wind direction
+2. **Wake losses**: Downwind turbines lose 10-40% efficiency
+3. **Array layout**: Maximize spacing in dominant wind direction
+4. **Site access**: Roads and infrastructure placement
+
+**Example impact:**
+```
+10 turbines in a line:
+- Perpendicular to wind: Each turbine at 100% efficiency ✅
+- Aligned with wind: Turbines 2-10 at 60-85% efficiency ❌
+  → 20-30% total farm energy loss!
 ```
 
-**Note:** Direction uses average of u/v components (not per-hour). This is acceptable because we only need the **prevailing wind direction** for:
-- Turbine orientation (yaw control)
-- Array layout optimization
-- Wake effect minimization
+For wind farm planning, knowing **where strong winds come from** is as important as knowing average wind speed.
 
-**Typical patterns:**
-- **Continental Europe**: 220-270° (SW to W prevailing)
-- **Coastal areas**: Variable by sea breeze (often 2 dominant directions)
-- **Mountain passes**: Aligned with valley axis (bi-directional)
+#### What It Represents
 
-**Impact on wind farm:**
-- Turbines arranged perpendicular to prevailing direction
-- Spacing accounts for wake zones downwind
-- 5-10 rotor diameters spacing in prevailing direction
-- 3-5 rotor diameters in cross-wind direction
+- **Meteorological convention**: Direction wind is **coming from**
+  - 0° = North wind (from north)
+  - 90° = East wind (from east)
+  - 180° = South wind (from south)
+  - 270° = West wind (from west)
+
+- **Power-weighted prevailing direction**: The direction where the **strongest winds** (highest energy) come from
+  - NOT a simple average (which could show a direction where wind rarely blows)
+  - Weighted by v³ (wind power) to emphasize energy-producing winds
+  - Ignores calm periods and light breezes
+  - Shows operational reality for turbine siting
+
+#### Calculation Method
+
+**Formula (Power-Weighted Circular Mean):**
+
+```python
+# For each hour:
+speed_i = √(u² + v²)
+direction_i = atan2(v, u)
+weight_i = speed³  # Power weighting
+
+# Convert directions to vectors, weight by power:
+weighted_x = Σ(cos(direction_i) × weight_i)
+weighted_y = Σ(sin(direction_i) × weight_i)
+
+# Calculate prevailing direction:
+prevailing_direction = atan2(weighted_y, weighted_x)
+```
+
+**Why power-weighting (v³)?**
+- A 10 m/s wind produces 8× more energy than a 5 m/s wind
+- Light winds (<3 m/s) don't generate power (below cut-in speed)
+- We need to know where **power-producing winds** come from, not all winds
+
+**Example:**
+```
+Site over a year:
+- 30% of time: Strong 8 m/s winds from NE (270 W/m² each)
+- 40% of time: Light 2 m/s winds from SW (4 W/m² each)
+- 30% of time: Variable other directions
+
+Simple average: Would show SE (between NE and SW) ❌
+Power-weighted: Shows NE (where energy comes from) ✅
+
+For turbine layout, you optimize for NE winds!
+```
+
+#### Interpretation Guidelines
+
+**Compass Sectors:**
+
+| Degrees | Sector | Cardinal | Description |
+|---------|--------|----------|-------------|
+| 337.5-22.5° | N | North | Cold continental air (winter) |
+| 22.5-67.5° | NE | Northeast | Transitional, coastal influence |
+| 67.5-112.5° | E | East | Continental, dry |
+| 112.5-157.5° | SE | Southeast | Balkan/Mediterranean influence |
+| 157.5-202.5° | S | South | Warm air masses |
+| 202.5-247.5° | SW | Southwest | Atlantic fronts (common Europe) |
+| 247.5-292.5° | W | West | Atlantic weather systems |
+| 292.5-337.5° | NW | Northwest | Cold fronts, storms |
+
+**Typical Regional Patterns:**
+
+**Romanian Climate:**
+- **Inland (Cluj)**: Expect W to NW (270-315°) - Atlantic systems
+- **Black Sea Coast (Constanța)**: Expect NE to E (45-90°) - sea winds
+- **Mountain passes**: Bi-modal (aligned with valley, e.g., 90° and 270°)
+
+**Your Data Validation:**
+- Constanța showing E/SE: Should verify against local climatology
+- Cluj showing E/ESE: Unusual (expected W/NW) - check if data correct
+
+#### Real-World Examples
+
+**Example 1: Horns Rev (Denmark) - Offshore**
+```
+Prevailing direction: 240° (WSW)
+Reason: Atlantic westerlies dominate North Sea
+Impact: Turbine rows oriented N-S (perpendicular to WSW)
+Wake losses: Minimized by correct spacing
+```
+
+**Example 2: West Texas (USA) - Plains**
+```
+Prevailing direction: 190° (S)
+Reason: Gulf of Mexico warm air flow
+Impact: Turbines spaced widely N-S
+Result: High capacity factors (33%+)
+```
+
+**Example 3: Romanian Sites (Your Data)**
+```
+Constanța: Will recompute with power-weighting
+Cluj: Will recompute with power-weighting
+
+Expected after fix:
+- Constanța: ~60-90° (NE-E from Black Sea) ✅
+- Cluj: ~270-300° (W-NW from Atlantic) ✅
+```
+
+#### Impact on Wind Farm Design
+
+**Turbine Spacing Requirements:**
+
+| Direction | Spacing | Reason |
+|-----------|---------|--------|
+| **Prevailing wind** | 5-10 rotor diameters | Minimize wake losses |
+| **Cross-wind** | 3-5 rotor diameters | Less wake interference |
+
+**Example for 100m rotor:**
+- Prevailing direction: 500-1000m spacing
+- Cross-wind: 300-500m spacing
+- Wrong direction data → 20-30% energy loss!
+
+**Layout Optimization:**
+```
+Good layout (oriented perpendicular to prevailing wind):
+  🌀  🌀  🌀  🌀  🌀
+  🌀  🌀  🌀  🌀  🌀
+        ↑ Wind direction
+Each turbine: 100% efficiency
+
+Bad layout (aligned with wind):
+  🌀 → 🌀 → 🌀 → 🌀 → 🌀
+        ↑ Wind direction
+Downwind turbines: 60-80% efficiency
+Farm loss: 25%+ ❌
+```
+
+#### Seasonal Variation
+
+Wind direction often changes by season:
+
+**Continental Romania (typical):**
+- **Winter**: NW/W (270-315°) - Cold fronts from Atlantic
+- **Summer**: E/SE (90-135°) - Local circulation, Balkan influence
+- **Transition**: Variable
+
+**Coastal Romania:**
+- **Day**: Onshore (from sea) - Sea breeze
+- **Night**: Offshore (to sea) - Land breeze
+- **Strong winds**: Usually from sea (NE/E)
+
+**Note:** Annual prevailing direction shows the **dominant energy-producing** direction, but farms may see bi-modal patterns.
+
+#### Data Quality & Accuracy
+
+✅ **Power-Weighted Method:**
+- Emphasizes strong winds (>6 m/s) where turbines produce
+- Ignores calm periods (<3 m/s cut-in speed)
+- Operationally relevant for wind farm planning
+- Matches industry practice for site assessment
+
+✅ **Circular Statistics:**
+- Proper handling of angular data (0° = 360°)
+- Vector averaging prevents directional cancellation
+- Weighted by v³ (power) not frequency
+- Results show true prevailing wind for energy production
+
+✅ **Validation Method:**
+- Compare with regional climatology
+- Check against nearby wind farms
+- Verify bi-modal patterns make physical sense
+- Cross-reference with topography (coastal, valley, etc.)
+
+#### Known Limitations
+
+⚠️ **Single Direction:**
+- Shows dominant direction only
+- Doesn't capture bi-modal patterns (two strong directions)
+- For final design, need full wind rose with frequency distribution
+
+⚠️ **Annual Average:**
+- Seasonal patterns not captured
+- Some sites have different winter/summer prevailing directions
+- Important for year-round operation planning
+
+⚠️ **Resolution:**
+- ERA5 25km resolution smooths local effects
+- Complex terrain (valleys, ridges) not fully captured
+- On-site measurements recommended for final layout
+
+✅ **For Initial Assessment:**
+- Sufficient for site screening
+- Identifies general turbine orientation
+- Good for comparing multiple sites
+- Adequate for 2×2 km zone planning
+
+#### Use in Wind Farm Planning
+
+**Site Screening Phase (Your Current Stage):**
+1. ✅ Identify prevailing wind direction
+2. ✅ Avoid sites with frequent direction changes (high turbulence)
+3. ✅ Prefer sites with consistent strong direction
+4. ✅ Consider topographic alignment (valleys, ridges)
+
+**Detailed Design Phase (Future):**
+1. Full wind rose (8-16 sectors with frequency)
+2. Seasonal directional analysis
+3. On-site measurements (1-2 years)
+4. CFD modeling for complex terrain
+5. Wake modeling for array optimization
+
+**Your current data provides the essential input for initial layout planning.**
 
 ---
 

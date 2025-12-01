@@ -43,20 +43,26 @@ def compute_wind_per_zone(zones):
     
     What: 
         - avg_wind_speed: Wind speed at 100m height (m/s) - direct from ERA5
-        - wind_direction: Meteorological direction 0-360° (0°=North)
+        - wind_direction: Power-weighted prevailing direction 0-360° (0°=North)
     
     Why:
         - wind speed: primary driver of power generation (P ∝ v³)
         - 100m height: typical turbine hub height (80-120m)
-        - wind direction: important for turbine alignment and layout
+        - wind direction: critical for turbine layout and wake optimization
+          * Power-weighted to show where STRONG winds come from
+          * Essential for minimizing wake losses (20-40% impact)
+          * Determines turbine spacing (5-10 diameters in prevailing direction)
 
     Source: ERA5 u/v wind components at 100m height
     Resolution: ~25km (ERA5 coarser than ERA5-Land but has 100m data)
     
-    Expected: 5-12 m/s at 100m for viable sites, >9 m/s excellent
+    Expected: 
+        - Speed: 5-12 m/s at 100m for viable sites, >9 m/s excellent
+        - Direction: Coastal sites (NE-E from sea), Inland (W-NW from Atlantic)
 
     Note: 
         - Speed calculated per-hour first to avoid cancellation (fixed bug)
+        - Direction weighted by v³ to emphasize energy-producing winds
         - ERA5 directly provides 100m wind (no extrapolation needed)
     """
     centers = []
