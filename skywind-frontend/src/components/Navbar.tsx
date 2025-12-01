@@ -1,6 +1,6 @@
-import { Link, NavLink } from "react-router-dom";
 import "./Navbar.css";
-import logo from "../assets/logo.png"; // pune logo-ul tău în assets/
+import { NavLink } from "react-router-dom";
+import logo from "../assets/logo.png";
 
 export default function Navbar() {
   return (
@@ -11,25 +11,11 @@ export default function Navbar() {
       </div>
 
       <div className="nav-links">
-        <NavLink to="/" className="nav-link">
-          Home
-        </NavLink>
-
-        <NavLink to="/generate" className="nav-link">
-          Generate Region
-        </NavLink>
-
-        <NavLink to="/saved" className="nav-link">
-          Saved Regions
-        </NavLink>
-
-        <NavLink to="/about" className="nav-link">
-          About
-        </NavLink>
-
-        <NavLink to="/contact" className="nav-link">
-          Contact
-        </NavLink>
+        <NavLink to="/" className="nav-link">Home</NavLink>
+        <NavLink to="/generate" className="nav-link">Generate</NavLink>
+        <NavLink to="/saved" className="nav-link">Saved Regions</NavLink>
+        <NavLink to="/about" className="nav-link">About</NavLink>
+        <NavLink to="/contact" className="nav-link">Contact</NavLink>
       </div>
     </nav>
   );
