@@ -1,0 +1,48 @@
+.home-container {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #eaf7f4, #c8ebe1, #b7e3d9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.home-hero {
+  text-align: center;
+  padding: 32px;
+  max-width: 700px;
+}
+
+.home-logo {
+  width: 180px;
+  margin-bottom: 12px;
+}
+
+.home-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.home-subtitle {
+  margin-top: 8px;
+  font-size: 1.2rem;
+  color: #0f3d3e;
+}
+
+.home-cta {
+  margin-top: 28px;
+  display: inline-block;
+  padding: 12px 32px;
+  background: var(--primary);
+  color: white;
+  text-decoration: none;
+  font-size: 1.2rem;
+  border-radius: 10px;
+  transition: 0.3s ease;
+}
+
+.home-cta:hover {
+  background: var(--accent);
+  transform: scale(1.05);
+}

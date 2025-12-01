@@ -1,0 +1,43 @@
+.gen-container {
+  padding: 40px;
+  max-width: 600px;
+  margin: auto;
+}
+
+.gen-container h1 {
+  text-align: center;
+  color: var(--primary);
+  margin-bottom: 30px;
+}
+
+.gen-card {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gen-card input {
+  padding: 10px;
+  border: 1px solid var(--gray);
+  border-radius: 8px;
+}
+
+.gen-card button {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  transition: 0.3s ease;
+}
+
+.gen-card button:hover {
+  background: var(--accent);
+  cursor: pointer;
+}

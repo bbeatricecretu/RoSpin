@@ -39,13 +39,9 @@ export default function RegionPage() {
   const [zones, setZones] = useState<ZoneDetailsDTO[]>([]);
   const [selectedZone, setSelectedZone] = useState<ZoneDetailsDTO | null>(null);
 
-  // Simple turbine selection (IDs correspond to seeded types)
   const [selectedTurbineId, setSelectedTurbineId] = useState<number>(1);
   const [zonePowers, setZonePowers] = useState<ZonePowerRow[]>([]);
 
-  // --------------------------
-  // LOAD REGION + ZONES
-  // --------------------------
   useEffect(() => {
     if (!regionId) return;
 
@@ -60,9 +56,6 @@ export default function RegionPage() {
     load();
   }, [regionId]);
 
-  // --------------------------
-  // LOAD ZONE POWERS WHEN TURBINE OR REGION CHANGES
-  // --------------------------
   useEffect(() => {
     if (!regionId || !selectedTurbineId) return;
 
@@ -79,17 +72,11 @@ export default function RegionPage() {
     loadPowers();
   }, [regionId, selectedTurbineId]);
 
-  // --------------------------
-  // HANDLE ZONE CLICK
-  // --------------------------
   async function handleZoneClick(zoneId: number) {
     const fullZone = await getZoneDetails(zoneId);
     setSelectedZone(fullZone);
   }
 
-  // --------------------------
-  // EARLY RETURN (SAFE NOW)
-  // --------------------------
   if (!regionId) {
     return (
       <div className="region-page">
@@ -100,10 +87,10 @@ export default function RegionPage() {
           </p>
           <button
             className="submit-btn"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/generate")}
             style={{ width: "auto", padding: "12px 24px" }}
           >
-            Go to Home
+            Go to Generate Page
           </button>
         </div>
       </div>
@@ -112,15 +99,12 @@ export default function RegionPage() {
 
   return (
     <div className="region-page">
-      {/* HEADER */}
       <div className="region-header">
         <img src={logo} alt="SkyWind Logo" />
         <h2>Region Map</h2>
       </div>
 
-      {/* MAIN TWO-COLUMN LAYOUT */}
       <div className="region-main">
-        {/* LEFT = MAP */}
         <div className="region-left">
           {regionDetails && (
             <div className="region-map-container">
@@ -133,7 +117,6 @@ export default function RegionPage() {
           )}
         </div>
 
-        {/* RIGHT = REGION + ZONE DETAILS + POWER TABLE */}
         <div className="region-right">
           <div className="details-card">
             <h2>Region Details</h2>
@@ -142,9 +125,7 @@ export default function RegionPage() {
 
           <div className="details-card">
             <h2>Zone Details</h2>
-            {!selectedZone && (
-              <p className="zone-placeholder">Click a zone</p>
-            )}
+            {!selectedZone && <p className="zone-placeholder">Click a zone</p>}
             {selectedZone && <ZoneDetails zone={selectedZone} />}
           </div>
 
@@ -168,7 +149,7 @@ export default function RegionPage() {
 
             {zonePowers.length === 0 ? (
               <p style={{ color: "var(--text-secondary)" }}>
-                No power data available for this region / turbine yet.
+                No power data available.
               </p>
             ) : (
               <div style={{ maxHeight: "260px", overflowY: "auto" }}>
@@ -176,31 +157,23 @@ export default function RegionPage() {
                   <thead>
                     <tr>
                       <th>Zone #</th>
-                      <th>A (lat, lon)</th>
-                      <th>B (lat, lon)</th>
-                      <th>C (lat, lon)</th>
-                      <th>D (lat, lon)</th>
+                      <th>A</th>
+                      <th>B</th>
+                      <th>C</th>
+                      <th>D</th>
                       <th>v (m/s)</th>
-                      <th>ρ (kg/m³)</th>
-                      <th>Power (kW)</th>
+                      <th>ρ</th>
+                      <th>Power</th>
                     </tr>
                   </thead>
                   <tbody>
                     {zonePowers.map((row) => (
                       <tr key={row.id}>
                         <td>{row.zone_index}</td>
-                        <td>
-                          {row.A.lat.toFixed(4)}, {row.A.lon.toFixed(4)}
-                        </td>
-                        <td>
-                          {row.B.lat.toFixed(4)}, {row.B.lon.toFixed(4)}
-                        </td>
-                        <td>
-                          {row.C.lat.toFixed(4)}, {row.C.lon.toFixed(4)}
-                        </td>
-                        <td>
-                          {row.D.lat.toFixed(4)}, {row.D.lon.toFixed(4)}
-                        </td>
+                        <td>{row.A.lat.toFixed(4)}, {row.A.lon.toFixed(4)}</td>
+                        <td>{row.B.lat.toFixed(4)}, {row.B.lon.toFixed(4)}</td>
+                        <td>{row.C.lat.toFixed(4)}, {row.C.lon.toFixed(4)}</td>
+                        <td>{row.D.lat.toFixed(4)}, {row.D.lon.toFixed(4)}</td>
                         <td>{row.avg_wind_speed.toFixed(2)}</td>
                         <td>{row.air_density.toFixed(3)}</td>
                         <td>{row.power_kw.toFixed(2)}</td>
