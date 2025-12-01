@@ -16,7 +16,7 @@ export default function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/generate" element={<GeneratePage />} />
-        <Route path="/region" element={<RegionPage />} />
+        <Route path="/region/:id" element={<RegionPage />} />
         <Route path="/saved" element={<SavedRegionsPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />

@@ -27,7 +27,7 @@ export default function GeneratePage() {
     };
 
     const result = await computeRegion(payload);
-    navigate("/region", { state: result });
+    navigate(`/region/${result.region_id}`, { state: result });
   }
 
   return (
