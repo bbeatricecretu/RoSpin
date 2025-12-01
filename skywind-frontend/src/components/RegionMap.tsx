@@ -3,37 +3,19 @@ import "leaflet/dist/leaflet.css";
 
 import type { RegionDetailsDTO } from "../dtos/RegionDetailsDTO";
 import type { ZoneDetailsDTO } from "../dtos/ZoneDetailsDTO";
+
 /* =======================================================
-   CATEGORY-LOCKED GRADIENT COLOR FUNCTION
-   Smooth nuance inside correct color band.
+   SIMPLE + PROFESSIONAL GIS COLOR SCALE
    ======================================================= */
 function getZoneColor(potential: number) {
-  const p = Math.max(0, Math.min(100, potential)); // clamp
+  const p = Math.max(0, Math.min(100, potential));
 
-  const ramp = (value: number, start: number, end: number) =>
-    (value - start) / (end - start);
+  if (p < 20)   return "rgba(255, 80, 80, 0.80)";     // strong red
+  if (p < 40)   return "rgba(255, 140, 60, 0.80)";    // strong orange
+  if (p < 60)   return "rgba(255, 200, 80, 0.80)";    // strong yellow
+  if (p < 80)   return "rgba(140, 200, 90, 0.85)";    // strong light green
 
-  // RED FAMILY (0–20)
-  if (p < 20) {
-    const t = ramp(p, 0, 20);
-    return `hsl(0, 85%, ${35 + t * 20}%)`;
-  }
-
-  // ORANGE FAMILY (20–40)
-  if (p < 40) {
-    const t = ramp(p, 20, 40);
-    return `hsl(${20 + t * 20}, 90%, ${40 + t * 20}%)`;
-  }
-
-  // YELLOW → YELLOW-GREEN (40–70)
-  if (p < 70) {
-    const t = ramp(p, 40, 70);
-    return `hsl(${40 + t * 60}, 90%, ${45 + t * 20}%)`;
-  }
-
-  // GREEN FAMILY (70–100)
-  const t = ramp(p, 70, 100);
-  return `hsl(${100 + t * 40}, 85%, ${40 + t * 20}%)`;
+  return "rgba(90, 180, 90, 0.90)";                   // strong green
 }
 
 type RegionMapProps = {
@@ -67,7 +49,10 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
       />
 
       {/* REGION OUTLINE */}
-      <Polygon positions={regionPolygon} pathOptions={{ color: "lime", weight: 3 }} />
+      <Polygon
+        positions={regionPolygon}
+        pathOptions={{ color: "#2a7f62", weight: 2 }}
+      />
 
       {/* ZONES */}
       {zones.map((z) => {
@@ -86,12 +71,11 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
               click: () => onZoneSelect(z.id),
             }}
             pathOptions={{
-            color: "white",
-            weight: 1,
-            fillColor: getZoneColor(z.potential),
-            fillOpacity: 0.85,
-          }}
-
+              color: "white",
+              weight: 1,
+              fillColor: getZoneColor(z.potential),
+              fillOpacity: 0.55,
+            }}
           />
         );
       })}
