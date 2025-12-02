@@ -42,7 +42,14 @@ def get_avg_temperature(lat: float, lon: float, year: int = 2022) -> float:
         scale=1000
     ).get('temperature_2m')
 
-    return round(float(kelvin.getInfo()) - 273.15, 2)
+    kelvin_value = kelvin.getInfo()
+    
+    # Handle missing data (e.g., over water, outside coverage)
+    if kelvin_value is None:
+        print(f"⚠ Temperature data unavailable for location ({lat}, {lon})")
+        return 15.0  # Default: 15°C (temperate climate average)
+    
+    return round(float(kelvin_value) - 273.15, 2)
 
 
 # ---------------------------------------------------------
