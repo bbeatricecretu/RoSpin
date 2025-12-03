@@ -1,15 +1,22 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: {
-    host: true,       // Listen on all addresses, including LAN and Docker
-    strictPort: true, // Exit if port 5173 is already in use
-    port: 5173,       // Explicitly set the port
-    watch: {
-      usePolling: true, // <--- IMPORTANT: Fixes hot reload in Docker on Windows
+
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
     },
   },
-})
+
+  server: {
+    host: true,
+    strictPort: true,
+    port: 5173,
+    watch: {
+      usePolling: true,
+    },
+  },
+});

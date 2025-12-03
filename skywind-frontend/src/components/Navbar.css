@@ -1,0 +1,65 @@
+/* NAVBAR: clean, always solid */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+
+  background: white;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 32px;
+  z-index: 999;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* LEFT SIDE */
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-logo {
+  height: 42px;
+}
+
+.nav-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2c4733; /* dark eco-green */
+}
+
+/* LINKS */
+.nav-links {
+  display: flex;
+  gap: 28px;
+}
+
+.nav-link {
+  color: #2c4733;
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-decoration: none;
+
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: 0.2s ease-in-out;
+}
+
+/* ACTIVE PAGE */
+.nav-link.active {
+  background: #9ed8c5;   /* light pastel green */
+  color: white !important;
+}
+
+/* HOVER */
+.nav-link:hover {
+  background: #e8f7f2;    /* super soft green */
+}

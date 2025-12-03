@@ -1,77 +1,25 @@
-import { MapContainer, TileLayer, Polygon, Popup, useMap } from "react-leaflet";
-import { useEffect } from "react";
+"use client";
+
+import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+
+import { useEffect, useRef, useState } from "react";
+import { MapLayerControl } from "./map/MapLayerControl";
+import { GeoJSON, useMap } from "react-leaflet";
+import L from "leaflet";
 
 import type { RegionDetailsDTO } from "../dtos/RegionDetailsDTO";
 import type { ZoneDetailsDTO } from "../dtos/ZoneDetailsDTO";
-/* =======================================================
-   CATEGORY-LOCKED GRADIENT COLOR FUNCTION
-   Smooth nuance inside correct color band.
-   ======================================================= */
-function getZoneColor(potential: number) {
-  const p = Math.max(0, Math.min(100, potential)); // clamp
 
-  const ramp = (value: number, start: number, end: number) =>
-    (value - start) / (end - start);
-
-  // RED FAMILY (0–20)
-  if (p < 20) {
-    const t = ramp(p, 0, 20);
-    return `hsl(0, 85%, ${35 + t * 20}%)`;
-  }
-
-  // ORANGE FAMILY (20–40)
-  if (p < 40) {
-    const t = ramp(p, 20, 40);
-    return `hsl(${20 + t * 20}, 90%, ${40 + t * 20}%)`;
-  }
-
-  // YELLOW → YELLOW-GREEN (40–70)
-  if (p < 70) {
-    const t = ramp(p, 40, 70);
-    return `hsl(${40 + t * 60}, 90%, ${45 + t * 20}%)`;
-  }
-
-  // GREEN FAMILY (70–100)
-  const t = ramp(p, 70, 100);
-  return `hsl(${100 + t * 40}, 85%, ${40 + t * 20}%)`;
+/* ======================= COLOR SCALE ======================= */
+function getZoneColor(p: number) {
+  p = Math.max(0, Math.min(100, p));
+  if (p < 20) return "rgba(255,80,80,0.8)";
+  if (p < 40) return "rgba(255,140,60,0.8)";
+  if (p < 60) return "rgba(255,200,80,0.8)";
+  if (p < 80) return "rgba(140,200,90,0.85)";
+  return "rgba(90,180,90,0.9)";
 }
-
-/* =======================================================
-   CATEGORY-LOCKED GRADIENT COLOR FUNCTION
-   Smooth nuance inside correct color band.
-   ======================================================= */
-function getZoneColor(potential: number) {
-  const p = Math.max(0, Math.min(100, potential)); // clamp
-
-  // Red category: 0–20
-  if (p < 20) {
-    const t = p / 20; // 0..1
-    return `hsl(${0 + t * 10}, 90%, ${40 + t * 10}%)`;
-    // shades of red → slightly lighter red
-  }
-
-  // Orange category: 20–40
-  if (p < 40) {
-    const t = (p - 20) / 20;
-    return `hsl(${20 + t * 20}, 90%, ${45 + t * 10}%)`;
-    // dark orange → bright orange
-  }
-
-  // Yellow-green category: 40–70
-  if (p < 70) {
-    const t = (p - 40) / 30;
-    return `hsl(${40 + t * 60}, 85%, ${50 + t * 10}%)`;
-    // orange-yellow → yellow → yellow-green
-  }
-
-  // Green category: 70–100
-  const t = (p - 70) / 30;
-  return `hsl(${100 + t * 40}, 85%, ${45 + t * 10}%)`;
-  // green → brighter lime green
-}
-
-
 
 type RegionMapProps = {
   region: RegionDetailsDTO;
@@ -82,80 +30,123 @@ type RegionMapProps = {
 export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProps) {
   const { center, A, B, C, D } = region;
 
-  const regionPolygon: [number, number][] = [
-    [A.lat, A.lon],
-    [B.lat, B.lon],
-    [C.lat, C.lon],
-    [D.lat, D.lon],
-  ];
+  const [waterData, setWaterData] = useState<any>(null);
+  const waterLayerRef = useRef<L.GeoJSON | null>(null);
+
+  /* ======================= LOAD WATER ======================= */
+  useEffect(() => {
+    async function loadWater() {
+      try {
+        const res = await fetch(
+          `http://localhost:8000/api/regions/${region.id}/water/`
+        );
+        const json = await res.json();
+
+        // Guard against invalid data
+        if (!json || typeof json !== "object") {
+          console.warn("Water data invalid:", json);
+          return;
+        }
+
+        setWaterData(json);
+      } catch (err) {
+        console.error("Failed loading water", err);
+      }
+    }
+
+    loadWater();
+  }, [region.id]);
+
+  const regionPolygon = [
+    [A?.lat, A?.lon],
+    [B?.lat, B?.lon],
+    [C?.lat, C?.lon],
+    [D?.lat, D?.lon],
+  ].filter((p) => p[0] && p[1]); // Remove invalid coords
 
   const mapCenter: [number, number] = [center.lat, center.lon];
 
   return (
     <MapContainer
       center={mapCenter}
-      zoom={11}
+      zoom={12}
       scrollWheelZoom={true}
       className="leaflet-container"
-      style={{ height: "100%", width: "100%" }}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+      <WaterLayerInitializer
+        waterData={waterData}
+        waterLayerRef={waterLayerRef}
       />
 
-      {/* REGION OUTLINE */}
-      <Polygon
-        positions={regionPolygon}
-        pathOptions={{
-          color: "#00b4d8",
-          weight: 3,
-          fillOpacity: 0,
-        }}
-      />
+      <MapLayerControl waterLayerRef={waterLayerRef} />
+
+      {/* REGION BORDER */}
+      {regionPolygon.length === 4 && (
+        <Polygon positions={regionPolygon as any} pathOptions={{ color: "#2a7f62", weight: 2 }} />
+      )}
 
       {/* ZONES */}
       {zones.map((z) => {
-        const poly: [number, number][] = [
-          [z.A.lat, z.A.lon],
-          [z.B.lat, z.B.lon],
-          [z.C.lat, z.C.lon],
-          [z.D.lat, z.D.lon],
-        ];
+        const poly = [
+          [z.A?.lat, z.A?.lon],
+          [z.B?.lat, z.B?.lon],
+          [z.C?.lat, z.C?.lon],
+          [z.D?.lat, z.D?.lon],
+        ].filter((p) => p[0] && p[1]);
 
-        const zoneColor = getZoneColor(i, zones.length);
+        if (poly.length !== 4) {
+          console.warn("Invalid zone polygon", z.id, poly);
+          return null;
+        }
 
         return (
           <Polygon
             key={z.id}
-            positions={poly}
-            eventHandlers={{
-              click: () => onZoneSelect(z.id),
-            }}
+            positions={poly as any}
+            eventHandlers={{ click: () => onZoneSelect(z.id) }}
             pathOptions={{
-            color: "white",
-            weight: 1,
-            fillColor: getZoneColor(z.potential),
-            fillOpacity: 0.85,
-          }}
-
-          />
-              color: "#ffffff",
+              color: "white",
               weight: 1,
-              fillColor: zoneColor,
-              fillOpacity: 0.4,
+              fillColor: getZoneColor(z.potential),
+              fillOpacity: 0.55,
             }}
-          >
-            <Popup>
-              <div style={{ minWidth: "150px" }}>
-                <strong>Zone {z.index}</strong>
-                <br />
-                <small>Click to view details</small>
-              </div>
-            </Popup>
-          </Polygon>
+          />
         );
       })}
     </MapContainer>
   );
+}
+
+/* ===================== WATER LAYER INIT ===================== */
+
+function WaterLayerInitializer({
+  waterData,
+  waterLayerRef,
+}: {
+  waterData: any;
+  waterLayerRef: React.MutableRefObject<L.GeoJSON | null>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !waterData) return;
+
+    try {
+      if (waterLayerRef.current) {
+        map.removeLayer(waterLayerRef.current);
+      }
+
+      const layer = L.geoJSON(waterData, {
+        style: { color: "#1e90ff", weight: 2 },
+      });
+
+      waterLayerRef.current = layer;
+    } catch (err) {
+      console.error("Failed to create water layer:", err);
+    }
+  }, [map, waterData]);
+
+  return null;
 }

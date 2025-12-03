@@ -8,14 +8,15 @@ ee.Initialize(project='rospin1')
 # TEMPERATURE
 # ---------------------------------------------------------
 
-def get_avg_temperature(lat: float, lon: float, year: int = 2023) -> float:
+def get_avg_temperature(lat: float, lon: float, year: int = 2022) -> float:
     """
+    REGION:
     Return mean annual 2m air temperature (°C) from ERA5-Land.
 
     Args:
         lat: Latitude in decimal degrees
         lon: Longitude in decimal degrees
-        year: Year for data retrieval (default: 2023)
+        year: Year for data retrieval (default: 2022)
 
     Returns:
         float: Mean annual temperature in Celsius, rounded to 2 decimals
@@ -41,65 +42,103 @@ def get_avg_temperature(lat: float, lon: float, year: int = 2023) -> float:
         scale=1000
     ).get('temperature_2m')
 
-    return round(float(kelvin.getInfo()) - 273.15, 2)
+    kelvin_value = kelvin.getInfo()
+    
+    # Handle missing data (e.g., over water, outside coverage)
+    if kelvin_value is None:
+        print(f"⚠ Temperature data unavailable for location ({lat}, {lon})")
+        return 15.0  # Default: 15°C (temperate climate average)
+    
+    return round(float(kelvin_value) - 273.15, 2)
 
 
 # ---------------------------------------------------------
 # WIND SPEED + WIND DIRECTION
 # ---------------------------------------------------------
 
-def get_avg_wind_speeds(centers, year: int = 2023):
+def get_avg_wind_speeds(centers, year: int = 2022):
     """
+    ZONE:
     Fetch average annual wind speed and direction for multiple points.
 
     Args:
         centers: list of (lat, lon) tuples — already rounded to ~5 decimals
-        year: year for data (default: 2023)
+        year: year for data (default: 2022)
 
     Returns:
         dict[(lat, lon)] = {"speed": m/s, "direction": degrees (0–360)}
 
     Notes:
-        - Uses ERA5-Land hourly data at 10m height
+        - Uses ERA5 hourly data at 100m height (turbine hub height)
         - Speed: √(u² + v²) averaged over the year
-        - Direction: meteorological (0° = North, 90° = East)
+        - Direction: power-weighted prevailing direction (emphasizes strong winds)
+          * Weighted by v³ (wind power) to identify energy-producing directions
+          * Meteorological convention: 0° = North, 90° = East, 180° = South, 270° = West
+          * Shows where the strongest winds come from (critical for turbine siting)
         - Returns 0.0 for missing data points
+        - Resolution: ~25km (ERA5 is coarser than ERA5-Land but has 100m data)
     """
 
     if not centers:
         return {}
 
     coll = (
-        ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
-        .select(['u_component_of_wind_10m', 'v_component_of_wind_10m'])
+        ee.ImageCollection('ECMWF/ERA5/HOURLY')
+        .select(['u_component_of_wind_100m', 'v_component_of_wind_100m'])
         .filterDate(f'{year}-01-01', f'{year}-12-31')
     )
 
-    mean = coll.mean()
+    # FIXED: Calculate speed per hour FIRST, then average
+    def calc_speed_and_direction(img):
+        """Calculate wind speed and direction for each hourly image."""
+        u = img.select('u_component_of_wind_100m')
+        v = img.select('v_component_of_wind_100m')
+        
+        # Wind speed
+        speed_img = u.pow(2).add(v.pow(2)).sqrt().rename('wind_speed')
+        
+        # Wind direction (meteorological: direction wind comes FROM)
+        # atan2(v, u) gives direction in radians, convert to degrees
+        direction_img = v.atan2(u).multiply(180.0 / 3.14159265).rename('wind_dir_raw')
+        
+        # Normalize to 0-360 (atan2 gives -180 to +180)
+        direction_img = direction_img.add(360).mod(360).rename('wind_dir')
+        
+        # Weight: speed³ (power-weighted - emphasizes strong winds)
+        weight = speed_img.pow(3).rename('weight')
+        
+        return img.addBands([speed_img, direction_img, weight])
 
-    # Wind speed √(u² + v²)
-    speed = mean.expression(
-        'sqrt(u*u + v*v)',
-        {
-            'u': mean.select('u_component_of_wind_10m'),
-            'v': mean.select('v_component_of_wind_10m'),
-        }
-    ).rename('wind_speed')
+    coll_with_metrics = coll.map(calc_speed_and_direction)
+    
+    # Average the speeds (not the components)
+    speed = coll_with_metrics.select('wind_speed').mean()
 
-    # Wind direction atan2(u, v) -> degrees
-    direction = mean.expression(
-        '(180 / 3.14159265) * atan2(v, u)',
-        {
-            'u': mean.select('u_component_of_wind_10m'),
-            'v': mean.select('v_component_of_wind_10m'),
-        }
-    ).rename('wind_dir')
-
-    # Normalize to 0–360
-    direction = direction.expression(
-        '(dir + 360) % 360',
-        {'dir': direction}
-    )
+    # Power-weighted direction (emphasizes strong wind directions)
+    # For wind farms, we care about where STRONG winds come from
+    def calc_weighted_components(img):
+        """Calculate weighted x and y components for circular averaging."""
+        dir_rad = img.select('wind_dir').multiply(3.14159265 / 180.0)
+        weight = img.select('weight')
+        
+        # x = cos(direction) * weight
+        # y = sin(direction) * weight
+        weighted_x = dir_rad.cos().multiply(weight).rename('weighted_x')
+        weighted_y = dir_rad.sin().multiply(weight).rename('weighted_y')
+        
+        return img.addBands([weighted_x, weighted_y])
+    
+    coll_weighted = coll_with_metrics.map(calc_weighted_components)
+    
+    # Average the weighted components
+    mean_weighted_x = coll_weighted.select('weighted_x').mean()
+    mean_weighted_y = coll_weighted.select('weighted_y').mean()
+    
+    # Calculate prevailing direction from weighted components
+    direction = mean_weighted_y.atan2(mean_weighted_x).multiply(180.0 / 3.14159265)
+    
+    # Normalize to 0-360
+    direction = direction.add(360).mod(360).rename('wind_dir')
 
     img = speed.addBands(direction)
 
@@ -152,11 +191,12 @@ def get_avg_wind_speeds(centers, year: int = 2023):
 
 
 # ---------------------------------------------------------
-# DEM (Elevation, Slope, Tri)
+# ROUGHNESS -> DEM (Elevation, Slope, Tri)
 # ---------------------------------------------------------
 
 def get_dem_layers():
     """
+    ZONE:
     Create multi-band Earth Engine image with elevation, slope, and terrain roughness.
 
     Returns:
@@ -191,12 +231,13 @@ def get_dem_layers():
 # AIR DENSITY ρ = p / (R_d * T)
 # ---------------------------------------------------------
 
-def get_air_density_image(year: int = 2023):
+def get_air_density_image(year: int = 2022):
     """
+    ZONE:
     Create Earth Engine image of air density using ideal gas law.
 
     Args:
-        year: Year for data retrieval (default: 2023)
+        year: Year for data retrieval (default: 2022)
 
     Returns:
         ee.Image: Single-band image with air density in kg/m³
@@ -207,6 +248,7 @@ def get_air_density_image(year: int = 2023):
         - T: 2m temperature (K) from ERA5-Land
         - R_d: specific gas constant for dry air = 287.05 J/(kg·K)
         - Typical values: 1.0-1.3 kg/m³ (sea level ≈ 1.225 kg/m³)
+        - Calculates density per-hour then averages (consistent with wind speed method)
     """
     coll = (
         ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
@@ -214,13 +256,17 @@ def get_air_density_image(year: int = 2023):
         .select(['surface_pressure', 'temperature_2m'])
     )
 
-    mean = coll.mean()
-    T = mean.select('temperature_2m')  # Kelvin
-    P = mean.select('surface_pressure')  # Pascals
-    R_d = 287.05
+    # Calculate air density for each hour, then average
+    def calc_density(img):
+        """Calculate air density for each hourly image."""
+        T = img.select('temperature_2m')  # Kelvin
+        P = img.select('surface_pressure')  # Pascals
+        R_d = 287.05
+        rho = P.divide(T.multiply(R_d)).rename('air_density')
+        return rho
 
-    rho = P.divide(T.multiply(R_d)).rename('air_density')
-    return rho
+    hourly_rho = coll.map(calc_density)
+    return hourly_rho.mean()
 
 
 # ---------------------------------------------------------
@@ -228,12 +274,13 @@ def get_air_density_image(year: int = 2023):
 # P = 0.5 * ρ * v³
 # ---------------------------------------------------------
 
-def get_wind_power_density_image(year: int = 2023):
+def get_wind_power_density_image(year: int = 2022):
     """
+    ZONE:
     Create Earth Engine image of wind power density.
 
     Args:
-        year: Year for data retrieval (default: 2023)
+        year: Year for data retrieval (default: 2022)
 
     Returns:
         ee.Image: Single-band image with wind power density in W/m²
@@ -242,29 +289,42 @@ def get_wind_power_density_image(year: int = 2023):
         - Formula: P = 0.5 × ρ × v³ (per Betz's law)
         - Calculates power density for each hour, then averages
         - This preserves the cubic relationship of wind speed
-        - Wind class guidelines:
-            < 100 W/m²: Poor
-            100-200 W/m²: Marginal
-            200-300 W/m²: Fair
-            300-400 W/m²: Good
-            > 400 W/m²: Excellent
+        - Uses ERA5 100m wind + ERA5-Land surface data for air density
+        - Wind class guidelines (at 100m):
+            < 300 W/m²: Poor
+            300-500 W/m²: Marginal
+            500-800 W/m²: Fair
+            800-1200 W/m²: Good
+            > 1200 W/m²: Excellent
     """
-    coll = (
+    # Get 100m wind from ERA5
+    wind_coll = (
+        ee.ImageCollection('ECMWF/ERA5/HOURLY')
+        .filterDate(f'{year}-01-01', f'{year}-12-31')
+        .select(['u_component_of_wind_100m', 'v_component_of_wind_100m'])
+    )
+    
+    # Get surface data from ERA5-Land (higher resolution for pressure/temp)
+    surface_coll = (
         ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
         .filterDate(f'{year}-01-01', f'{year}-12-31')
-        .select([
-            'u_component_of_wind_10m',
-            'v_component_of_wind_10m',
-            'surface_pressure',
-            'temperature_2m'
-        ])
+        .select(['surface_pressure', 'temperature_2m'])
     )
 
-    def per_hour(img):
-        u = img.select('u_component_of_wind_10m')
-        v = img.select('v_component_of_wind_10m')
-        T = img.select('temperature_2m')  # K
-        P = img.select('surface_pressure')  # Pa
+    def per_hour(wind_img):
+        # Get timestamp to match surface data
+        time = wind_img.get('system:time_start')
+        
+        # Get corresponding surface data
+        surface_img = surface_coll.filterDate(
+            ee.Date(time), 
+            ee.Date(time).advance(1, 'hour')
+        ).first()
+        
+        u = wind_img.select('u_component_of_wind_100m')
+        v = wind_img.select('v_component_of_wind_100m')
+        T = surface_img.select('temperature_2m')  # K
+        P = surface_img.select('surface_pressure')  # Pa
         R_d = 287.05
 
         speed = u.pow(2).add(v.pow(2)).sqrt()
@@ -272,7 +332,7 @@ def get_wind_power_density_image(year: int = 2023):
         pd = rho.multiply(speed.pow(3)).multiply(0.5).rename('power_density')
         return pd
 
-    hourly_pd = coll.map(per_hour)
+    hourly_pd = wind_coll.map(per_hour)
     return hourly_pd.mean().rename('power_density')
 
 
@@ -282,6 +342,7 @@ def get_wind_power_density_image(year: int = 2023):
 
 def get_landcover_image(year: int = 2021):
     """
+    ZONE:
     Load ESA WorldCover land cover classification image.
 
     Args:

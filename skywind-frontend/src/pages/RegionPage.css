@@ -1,116 +1,250 @@
-/* =============================== */
-/* REGION PAGE – NEW LAYOUT        */
-/* =============================== */
-
-.region-page {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100vh;
-  padding: 10px 20px;
-  background: #111;
-  overflow: hidden;
+.region-layout {
+  padding: 10px 32px 40px;  
+  max-width: 1600px;
+  margin: auto;
 }
 
-/* HEADER */
-.region-header {
+/* HEADER BAR */
+.region-headerbox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.region-headerbox h1 {
+  font-size: 2rem;
+  color: var(--primary);
+}
+
+.save-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #888;
+}
+
+.save-btn.saved {
+  color: gold;
+}
+
+/* OVERVIEW */
+.overview-box {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.overview-box > div {
+  background: white;
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  text-align: center;
+}
+
+.overview-box h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #256d57;
+}
+
+.overview-box p {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+/* MAIN LAYOUT */
+.region-content {
+  display: flex;
+  gap: 20px;
+}
+
+/* MAP SIDE */
+.map-side {
+  flex: 1.3;
+}
+
+.map-side .leaflet-container {
+  height: 620px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+}
+
+/* Legend */
+.legend {
+  background: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  width: 220px;
+  margin-top: 10px;
+}
+
+/* Items layout */
+.legend-item {
   display: flex;
   align-items: center;
-  gap: 15px;
-  color: #fff;
-  font-size: 22px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin: 6px 0;
 }
 
-.region-header img {
-  height: 45px;
-  width: auto;
+/* Base square */
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
 }
 
-/* MAIN 2-COLUMN LAYOUT */
-.region-main {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  gap: 20px;
-  min-height: 0;
+/* ===== COLORS (matching getZoneColor) ===== */
+
+.legend-low {
+  background: rgba(255, 80, 80, 0.80);    
 }
 
-/* LEFT — MAP */
-.region-left {
-  flex: 2;
-  display: flex;
+.legend-low-med {
+  background: rgba(255, 140, 60, 0.80);   
 }
 
-.region-map-container {
-  flex: 1;
-  background: #222;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 2px solid #333;
+.legend-med {
+  background: rgba(255, 200, 80, 0.80);   
 }
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
+.legend-good {
+  background: rgba(140, 200, 90, 0.85);   
 }
 
-/* RIGHT — STACKED DETAILS */
-.region-right {
-  flex: 1;
+.legend-excellent {
+  background: rgba(90, 180, 90, 0.90);    
+}
+
+/* RIGHT PANEL */
+.right-panel {
+  flex: 0.9;
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  min-height: 0;
+  gap: 18px;
 }
 
-.details-card {
+/* TABS */
+.tab-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.tab-bar button {
   flex: 1;
-  background: #151515;
-  border: 1px solid #333;
+  padding: 10px 0;
+  background: #eaf7f4;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.tab-bar button.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* PANELS */
+.panel-card {
+  background: white;
+  padding: 18px;
   border-radius: 12px;
-  padding: 15px;
-  overflow-y: auto;
-  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.07);
+  min-height: 200px;
 }
 
-.details-card h2 {
-  color: #4cc9f0;
-  margin-bottom: 10px;
-}
-
-/* COMPONENT CARDS */
-.region-details-container,
-.zone-details-container {
-  background: #1a1a1a;
-  border-radius: 10px;
-  padding: 15px;
-  border: 1px solid #333;
-}
-
-.region-details-container h3,
-.zone-details-container h3 {
-  color: #4cc9f0;
+/* POWER TABLE */
+.power-table {
+  width: 100%;
   margin-top: 10px;
+  border-collapse: collapse;
 }
 
-.region-details-container h4,
-.zone-details-container h4 {
-  color: #74c0fc;
-  margin-top: 12px;
-  padding-left: 6px;
-  border-left: 3px solid #4cc9f0;
+.power-table th,
+.power-table td {
+  border-bottom: 1px solid #eee;
+  padding: 6px;
+  text-align: left;
 }
 
-.region-details-container p,
-.zone-details-container p {
-  margin: 3px 0;
-  font-size: 14px;
-  color: #ddd;
+/* TOP LIST */
+.top-list {
+  list-style: none;
+  padding: 0;
 }
 
-.zone-placeholder {
-  color: #888;
-  font-style: italic;
+.top-list li {
+  padding: 10px;
+  border-radius: 8px;
+  background: #eff8f4;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.top-list li:hover {
+  background: #dff1ea;
+}
+
+/* EXPORT */
+.export-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
   margin-top: 10px;
+  cursor: pointer;
+}
+
+.loading-screen {
+  width: 100%;
+  padding-top: 150px;
+  text-align: center;
+  font-size: 1.3rem;
+  color: #256d57;
+}
+
+.spinner {
+  margin: 0 auto 20px auto;
+  border: 4px solid #d8efe8;
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.zones-loading-overlay {
+  position: absolute;
+  width: 100%;
+  height: 620px;
+  background: rgba(255,255,255,0.7);
+  z-index: 999;
+  top: 0;
+  border-radius: 12px;
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.zones-loading-overlay p {
+  margin-top: 10px;
+  color: #256d57;
+  font-size: 1.1rem;
 }

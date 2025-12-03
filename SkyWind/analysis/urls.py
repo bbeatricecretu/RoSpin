@@ -16,4 +16,8 @@ urlpatterns = [
         views.get_region_zone_powers,
         name="region_zone_powers",
     ),
+    path("regions/<int:region_id>/water/", views.get_water),
+
+    path("regions/<int:region_id>/grid/", views.get_region_grid),
+
 ]

@@ -415,3 +415,53 @@ def get_region_zone_powers(request, region_id):
         })
 
     return JsonResponse(result, safe=False)
+
+from django.http import JsonResponse
+from analysis.models import Region
+from analysis.services.water_gee import get_water_polygons
+
+def get_water(request, region_id):
+    try:
+        region = Region.objects.select_related("A", "B", "C", "D").get(id=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
+
+    # Create bounding coords
+    lats = [region.A.lat, region.B.lat, region.C.lat, region.D.lat]
+    lons = [region.A.lon, region.B.lon, region.C.lon, region.D.lon]
+
+    try:
+        water_fc = get_water_polygons(
+            min(lats), min(lons), max(lats), max(lons)
+        )
+    except Exception as e:
+        # Always return VALID JSON so React doesn't die
+        return JsonResponse({
+            "type": "FeatureCollection",
+            "features": [],
+            "error": str(e)
+        })
+
+    return JsonResponse(water_fc)
+
+from .services.grid_osm import get_grid_infrastructure
+from .models import Region
+from django.http import JsonResponse
+
+def get_region_grid(request, region_id):
+    try:
+        r = Region.objects.get(pk=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
+
+    # Compute region bounding box
+    lat_min = min(r.A.lat, r.B.lat, r.C.lat, r.D.lat)
+    lat_max = max(r.A.lat, r.B.lat, r.C.lat, r.D.lat)
+    lon_min = min(r.A.lon, r.B.lon, r.C.lon, r.D.lon)
+    lon_max = max(r.A.lon, r.B.lon, r.C.lon, r.D.lon)
+
+    grid = get_grid_infrastructure(lat_min, lon_min, lat_max, lon_max)
+
+    return JsonResponse(grid, safe=False)
+
+
