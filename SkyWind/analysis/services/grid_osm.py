@@ -1,26 +1,76 @@
 import requests
-from django.conf import settings
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
+# ===============================================================
+# BASIC BBOX CLIPPING (no shapely, fast, stable)
+# ===============================================================
+
+
+def clip_line_to_bbox(coords, lat_min, lon_min, lat_max, lon_max):
+    """
+    Clip a LineString to the region bounding box using Liang-Barsky.
+    coords = list of (lon, lat) tuples
+    Returns a list of clipped segments (each is a list of coords)
+    """
+
+    def inside(p):
+        x, y = p
+        return (lon_min <= x <= lon_max) and (lat_min <= y <= lat_max)
+
+    def clip_segment(p1, p2):
+        x0, y0 = p1
+        x1, y1 = p2
+
+        dx = x1 - x0
+        dy = y1 - y0
+
+        p = [-dx, dx, -dy, dy]
+        q = [x0 - lon_min, lon_max - x0, y0 - lat_min, lat_max - y0]
+
+        u1, u2 = 0.0, 1.0
+
+        for pi, qi in zip(p, q):
+            if pi == 0:
+                if qi < 0:
+                    return None
+            else:
+                t = qi / pi
+                if pi < 0:
+                    if t > u2:
+                        return None
+                    if t > u1:
+                        u1 = t
+                else:
+                    if t < u1:
+                        return None
+                    if t < u2:
+                        u2 = t
+
+        nx0 = x0 + u1 * dx
+        ny0 = y0 + u1 * dy
+        nx1 = x0 + u2 * dx
+        ny1 = y0 + u2 * dy
+
+        return (nx0, ny0), (nx1, ny1)
+
+    clipped = []
+    for i in range(len(coords) - 1):
+        seg = clip_segment(coords[i], coords[i + 1])
+        if seg:
+            clipped.append([seg[0], seg[1]])
+
+    return clipped
+
+
+# ===============================================================
+# OSM → GEOJSON
+# ===============================================================
+
 
 def get_grid_infrastructure(lat_min, lon_min, lat_max, lon_max):
-    """
-    Fetch high-voltage power lines and substations from OSM using Overpass.
-
-    Args:
-        lat_min, lon_min, lat_max, lon_max: region bounding box.
-
-    Returns:
-        dict with:
-            - lines: GeoJSON FeatureCollection of transmission lines
-            - substations: GeoJSON FeatureCollection of substations
-    """
-
-    # Build Overpass bounding box string
     bbox = f"{lat_min},{lon_min},{lat_max},{lon_max}"
 
-    # --- QUERY 1: HIGH-VOLTAGE POWER LINES (major lines only) ---
     line_query = f"""
     [out:json][timeout:25];
     (
@@ -29,7 +79,6 @@ def get_grid_infrastructure(lat_min, lon_min, lat_max, lon_max):
     out geom;
     """
 
-    # --- QUERY 2: SUBSTATIONS (nodes + ways + relations) ---
     substation_query = f"""
     [out:json][timeout:25];
     (
@@ -45,58 +94,76 @@ def get_grid_infrastructure(lat_min, lon_min, lat_max, lon_max):
             r = requests.post(OVERPASS_URL, data=query)
             r.raise_for_status()
             return r.json()
-        except Exception as e:
-            return {"error": str(e), "elements": []}
+        except Exception:
+            return {"elements": []}
 
-    def to_geojson(osm):
-        features = []
-
-        for el in osm.get("elements", []):
-            if "geometry" not in el:
-                continue
-
-            geom = el["geometry"]
-
-            # Type: way → LineString (for lines)
-            if el["type"] == "way":
-                coords = [(p["lon"], p["lat"]) for p in geom]
-                features.append({
-                    "type": "Feature",
-                    "geometry": {"type": "LineString", "coordinates": coords},
-                    "properties": {"id": el["id"], "type": el["tags"].get("power", "")}
-                })
-
-            # Type: node → Point (for substations)
-            elif el["type"] == "node":
-                features.append({
-                    "type": "Feature",
-                    "geometry": {"type": "Point", "coordinates": [el["lon"], el["lat"]]},
-                    "properties": {"id": el["id"], "type": el["tags"].get("power", "")}
-                })
-
-            # Handle relation (substation area)
-            elif el["type"] == "relation":
-                # Some relations give a polygon outline
-                if "members" in el:
-                    rings = []
-                    for mem in el["members"]:
-                        if mem.get("geometry"):
-                            ring = [(p["lon"], p["lat"]) for p in mem["geometry"]]
-                            rings.append(ring)
-                    if rings:
-                        features.append({
-                            "type": "Feature",
-                            "geometry": {"type": "Polygon", "coordinates": rings},
-                            "properties": {"id": el["id"], "type": el["tags"].get("power", "")}
-                        })
-
-        return {"type": "FeatureCollection", "features": features}
-
-    # Fetch OSM data
     raw_lines = fetch(line_query)
-    raw_substations = fetch(substation_query)
+    raw_sub = fetch(substation_query)
 
     return {
-        "lines": to_geojson(raw_lines),
-        "substations": to_geojson(raw_substations),
+        "lines": convert_lines(raw_lines, lat_min, lon_min, lat_max, lon_max),
+        "substations": convert_substations(raw_sub, lat_min, lon_min, lat_max, lon_max),
     }
+
+
+# ===============================================================
+# LINE CONVERSION WITH CLIPPING
+# ===============================================================
+
+
+def convert_lines(osm, lat_min, lon_min, lat_max, lon_max):
+    features = []
+
+    for el in osm.get("elements", []):
+        if el["type"] != "way" or "geometry" not in el:
+            continue
+
+        coords = [(p["lon"], p["lat"]) for p in el["geometry"]]
+
+        # Clip the line to region bounding box
+        segments = clip_line_to_bbox(coords, lat_min, lon_min, lat_max, lon_max)
+        if not segments:
+            continue
+
+        for seg in segments:
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "LineString", "coordinates": seg},
+                    "properties": {
+                        "id": el["id"],
+                        "power": el.get("tags", {}).get("power", ""),
+                    },
+                }
+            )
+
+    return {"type": "FeatureCollection", "features": features}
+
+
+# ===============================================================
+# SUBSTATIONS (POINTS ONLY)
+# ===============================================================
+
+
+def convert_substations(osm, lat_min, lon_min, lat_max, lon_max):
+    features = []
+
+    for el in osm.get("elements", []):
+        if el["type"] != "node":
+            continue
+
+        x, y = el["lon"], el["lat"]
+
+        if lon_min <= x <= lon_max and lat_min <= y <= lat_max:
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [x, y]},
+                    "properties": {
+                        "id": el["id"],
+                        "power": el.get("tags", {}).get("power", ""),
+                    },
+                }
+            )
+
+    return {"type": "FeatureCollection", "features": features}

@@ -14,12 +14,24 @@ import L from "leaflet";
 
 interface MapLayerControlProps {
   waterLayerRef: React.MutableRefObject<L.GeoJSON | null>;
+  gridLinesLayerRef: React.MutableRefObject<L.GeoJSON | null>;
+  gridSubstationsLayerRef: React.MutableRefObject<L.GeoJSON | null>;
+  reliefLayerRef: React.MutableRefObject<L.GeoJSON | null>;
 }
 
-export function MapLayerControl({ waterLayerRef }: MapLayerControlProps) {
+export function MapLayerControl({
+  waterLayerRef,
+  gridLinesLayerRef,
+  gridSubstationsLayerRef,
+  reliefLayerRef,
+}: MapLayerControlProps) {
+
   const map = useMap();
   const [open, setOpen] = useState(false);
   const [showWater, setShowWater] = useState(false); // ON BY DEFAULT
+  const [showGrid, setShowGrid] = useState(false);
+  const [showRelief, setShowRelief] = useState(false);
+
 
   useEffect(() => {
     if (!map) return;
@@ -37,9 +49,49 @@ export function MapLayerControl({ waterLayerRef }: MapLayerControlProps) {
     };
   }, [showWater, waterLayerRef, map]);
 
+  useEffect(() => {
+    if (!map) return;
+
+    const linesLayer = gridLinesLayerRef.current;
+    const subsLayer = gridSubstationsLayerRef.current;
+
+    if (showGrid) {
+      if (linesLayer) map.addLayer(linesLayer);
+      if (subsLayer) map.addLayer(subsLayer);
+    } else {
+      if (linesLayer && map.hasLayer(linesLayer)) map.removeLayer(linesLayer);
+      if (subsLayer && map.hasLayer(subsLayer)) map.removeLayer(subsLayer);
+    }
+
+    return () => {
+      if (linesLayer && map.hasLayer(linesLayer)) map.removeLayer(linesLayer);
+      if (subsLayer && map.hasLayer(subsLayer)) map.removeLayer(subsLayer);
+    };
+  }, [showGrid, gridLinesLayerRef, gridSubstationsLayerRef, map]);
+
+  useEffect(() => {
+    if (!map) return;
+
+    const layer = reliefLayerRef.current;
+    if (!layer) return;
+
+    if (showRelief) {
+      map.addLayer(layer);
+    } else if (map.hasLayer(layer)) {
+      map.removeLayer(layer);
+    }
+
+    return () => {
+      if (layer && map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    };
+  }, [showRelief, reliefLayerRef, map]);
+
+
   return (
     <div
-      className="absolute top-[20px] left-[350px] z-[1000]
+      className="absolute top-[20px] left-[400px] z-[1000]
       rounded-md border bg-white shadow p-2
       w-[100px] text-sm"
     >
@@ -65,6 +117,29 @@ export function MapLayerControl({ waterLayerRef }: MapLayerControlProps) {
               Water
             </label>
           </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="grid-layer"
+              checked={showGrid}
+              onCheckedChange={(checked: boolean | "indeterminate") => setShowGrid(checked === true)}
+            />
+            <label htmlFor="grid-layer" className="text-xs">
+              Grid
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="relief-layer"
+              checked={showRelief}
+              onCheckedChange={(checked: boolean | "indeterminate") =>
+                setShowRelief(checked === true)
+              }
+            />
+            <label htmlFor="relief-layer" className="text-xs">
+              Relief
+            </label>
+          </div>
+
         </CollapsibleContent>
       </Collapsible>
     </div>
