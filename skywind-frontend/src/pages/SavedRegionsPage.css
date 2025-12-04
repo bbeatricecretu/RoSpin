@@ -1,0 +1,89 @@
+.saved-wrapper {
+  max-width: 900px;
+  margin: auto;
+  padding: 40px 20px;
+}
+
+.saved-title {
+  text-align: center;
+  color: var(--primary);
+  margin-bottom: 30px;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.empty-box {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+}
+
+.empty-box button {
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.saved-card {
+  display: flex;
+  justify-content: space-between;
+  padding: 18px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+  align-items: center;
+}
+
+.saved-info h3 {
+  margin: 0 0 6px;
+  color: #145f4a;
+  font-size: 1.2rem;
+}
+
+.saved-info p {
+  margin: 2px 0;
+}
+
+.saved-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.view-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.view-btn:hover {
+  background: #0f4d3c;
+}
+
+.delete-btn {
+  background: #ff6464;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background: #d33;
+}
