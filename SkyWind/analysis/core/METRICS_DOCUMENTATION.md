@@ -1,9 +1,71 @@
 # Zone Metrics Documentation
 
 **Project**: RoSpin - Wind Turbine Site Analysis  
-**Last Updated**: November 30, 2025
+**Last Updated**: December 3, 2025
 
 This document provides detailed technical documentation for all metrics computed for each zone in the wind farm analysis system.
+
+---
+
+## Data Quality & Cloud-Free Guarantee
+
+### Why Cloud Filtering is NOT Needed
+
+This system uses **ERA5/ERA5-Land reanalysis data**, which is fundamentally different from optical satellite imagery:
+
+**What is Reanalysis Data?**
+- **NOT raw satellite images** that can be blocked by clouds
+- **Assimilated model output** combining multiple data sources:
+  - Ground weather stations (direct measurements)
+  - Radiosonde data (weather balloons)
+  - Aircraft observations
+  - Satellite observations (multiple types)
+  - Numerical weather prediction models
+- **Complete, gap-free coverage** for every location, every hour
+- **Weather conditions already modeled** - clouds are part of the atmospheric simulation
+
+**Why Your Data Doesn't Need Cloud Filtering:**
+
+✅ **Wind measurements** - From atmospheric modeling (clouds don't block wind!)
+- Wind blows at 100m height regardless of cloud cover
+- ERA5 models wind fields using atmospheric physics
+- Validated against weather stations and radiosondes
+- No missing data from cloud obstruction
+
+✅ **Temperature** - From weather stations + models (measured at ground level)
+- Ground-based thermometers measure temperature directly
+- Not dependent on satellite views through clouds
+- 2m air temperature is a surface measurement
+- Continuous hourly data without gaps
+
+✅ **Pressure** - From barometers (not affected by clouds)
+- Measured by ground stations worldwide
+- Atmospheric pressure exists regardless of cloud cover
+- Used to calculate air density for power output
+- Complete temporal coverage
+
+✅ **Complete coverage** - No gaps, every hour, every location
+- Unlike optical satellites (Landsat, Sentinel-2) that can't see through clouds
+- ERA5 provides data even during storms, fog, or overcast conditions
+- 8,760 hours per year, all valid
+- No need to filter or interpolate missing values
+
+**Comparison with Satellite Imagery:**
+
+| Data Type | Cloud Issues? | Filtering Needed? |
+|-----------|---------------|-------------------|
+| **ERA5/ERA5-Land** (Your system) | ❌ No - Reanalysis model | ✅ Not needed |
+| Landsat / Sentinel-2 | ✅ Yes - Optical blocked by clouds | ❌ Required |
+| Sentinel-1 SAR | ❌ No - Radar penetrates clouds | ✅ Not needed |
+| MODIS | ✅ Yes - Optical blocked by clouds | ❌ Required |
+
+**What About Land Cover?**
+- Uses ESA WorldCover (annual composite)
+- Already cloud-filtered by ESA before distribution
+- Combines Sentinel-1 SAR (cloud-penetrating) + Sentinel-2 (pre-filtered)
+- No additional filtering needed
+
+**Result:** Your wind farm analysis uses **cloud-independent data sources** that provide complete, reliable measurements regardless of weather conditions. This ensures accurate wind resource assessment without data gaps or quality issues from cloud contamination.
 
 ---
 
