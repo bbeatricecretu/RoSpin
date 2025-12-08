@@ -233,9 +233,9 @@ class Command(BaseCommand):
 
                     hist = props.get("histogram")
 
-                    # If no histogram → unknown
+                    # If no histogram → empty dict
                     if not hist:
-                        z.land_type = ""
+                        z.land_type = {}
                         z.save()
                         continue
 
@@ -251,27 +251,22 @@ class Command(BaseCommand):
                             continue
 
                     if not hist_clean:
-                        z.land_type = ""
+                        z.land_type = {}
                         z.save()
                         continue
 
-                    # Find max frequency count
-                    max_count = max(hist_clean.values())
-
-                    # Get ALL classes with that max count
-                    dominant_classes = [
-                        class_id for class_id, count in hist_clean.items()
-                        if count == max_count
-                    ]
-
-                    # Convert class IDs into labels
-                    labels = [
-                        WORLD_COVER_CLASSES.get(c, f"class_{c}")
-                        for c in dominant_classes
-                    ]
-
-                    # Join them like "Grassland, Cropland"
-                    z.land_type = ", ".join(labels)
+                    # Calculate total pixels for percentage calculation
+                    total_pixels = sum(hist_clean.values())
+                    
+                    # Build dict with percentages for ALL classes
+                    land_type_percentages = {}
+                    for class_id, count in hist_clean.items():
+                        label = WORLD_COVER_CLASSES.get(class_id, f"class_{class_id}")
+                        percentage = round((count / total_pixels) * 100, 1)
+                        land_type_percentages[label] = percentage
+                    
+                    # Sort by percentage descending and save
+                    z.land_type = dict(sorted(land_type_percentages.items(), key=lambda x: x[1], reverse=True))
                     z.save()
 
                 self.stdout.write(self.style.SUCCESS("🏞 Land cover updated."))
@@ -297,7 +292,10 @@ class Command(BaseCommand):
                     wpd = (z.power_avg or 0.0) / 800
                     wpd = min(1.25, wpd)
                     rough = 1 - min(1.0, (z.roughness or 0.0) / 50)
-                    ok_land = 0 if z.land_type in EXCLUDED else 1
+                    # land_type is now a dict - check if dominant (first) land type is excluded
+                    land_types = z.land_type if isinstance(z.land_type, dict) else {}
+                    dominant_land = next(iter(land_types.keys()), "") if land_types else ""
+                    ok_land = 0 if dominant_land in EXCLUDED else 1
                     return round(100 * (0.7 * wpd + 0.3 * rough) * ok_land, 1)
 
                 for z in zones:

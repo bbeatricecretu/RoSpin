@@ -198,7 +198,8 @@ class Zone(models.Model):
     power_avg = models.FloatField(default=0.0)  # W/m²
 
     # Classification
-    land_type = models.CharField(max_length=50, blank=True)
+    # land_type: dict of {"Grassland": 45.2, "Cropland": 30.1, ...} percentages
+    land_type = models.JSONField(default=dict, blank=True)
     potential = models.FloatField(default=0.0)
 
     # Index inside the grid (1→100)

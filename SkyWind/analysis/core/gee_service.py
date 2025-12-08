@@ -200,12 +200,14 @@ def compute_WIND_power_density(zones, fc, zone_map):
 
 def compute_land_cover(zones, fc, zone_map):
     """
-    STEP 6: Classify land cover type.
+    STEP 6: Classify land cover type with percentages.
     
     Source: ESA WorldCover v200 (2021 data)
     Resolution: 10m
     
-    What: Dominant land cover class(es) in zone
+    What: All land cover classes in zone with their percentage coverage
+    Result: Dict like {"Grassland": 45.2, "Cropland": 30.1, "Tree cover": 24.7}
+    
     Classes: Tree cover, Shrubland, Grassland, Cropland, Built-up, 
              Bare/sparse, Snow/ice, Water, Wetland, Mangroves
     
@@ -213,8 +215,7 @@ def compute_land_cover(zones, fc, zone_map):
         ✓ Suitable: Grassland, Cropland, Bare/sparse, Shrubland
         ✗ Excluded: Built-up, Water, Wetland, Snow/ice, Mangroves
     
-    Method: Frequency histogram → most common class(es)
-    Note: Fixed string-to-int conversion bug for accurate matching
+    Method: Frequency histogram → calculate percentage for each class
     """
     img = get_landcover_image()
     lc = img.reduceRegions(fc, ee.Reducer.frequencyHistogram(), scale=10).getInfo()
@@ -227,11 +228,11 @@ def compute_land_cover(zones, fc, zone_map):
 
         hist = props.get("histogram")
         if not hist:
-            z.land_type = ""
+            z.land_type = {}
             z.save()
             continue
 
-        # Fixed: Convert string keys to int before comparison
+        # Convert string keys to int and get counts
         hist_clean = {}
         for k, v in hist.items():
             try:
@@ -242,15 +243,22 @@ def compute_land_cover(zones, fc, zone_map):
                 continue
 
         if not hist_clean:
-            z.land_type = ""
+            z.land_type = {}
             z.save()
             continue
 
-        max_count = max(hist_clean.values())
-        dom_classes = [cid for cid, cnt in hist_clean.items() if cnt == max_count]
-        labels = [WORLD_COVER_CLASSES.get(c, f"class_{c}") for c in dom_classes]
-
-        z.land_type = ", ".join(labels)
+        # Calculate total pixels for percentage calculation
+        total_pixels = sum(hist_clean.values())
+        
+        # Build dict with percentages for ALL classes (sorted by percentage descending)
+        land_type_percentages = {}
+        for class_id, count in hist_clean.items():
+            label = WORLD_COVER_CLASSES.get(class_id, f"class_{class_id}")
+            percentage = round((count / total_pixels) * 100, 1)
+            land_type_percentages[label] = percentage
+        
+        # Sort by percentage descending
+        z.land_type = dict(sorted(land_type_percentages.items(), key=lambda x: x[1], reverse=True))
         z.save()
 
 
@@ -288,7 +296,12 @@ def compute_potential(zones):
         wpd = (z.power_avg or 0.0) / 800
         wpd = min(1.25, wpd)
         rough = 1 - min(1.0, (z.roughness or 0.0) / 50)
-        ok_land = 0 if z.land_type in EXCLUDED_LAND else 1
+        
+        # Check if dominant land type (first key with highest %) is excluded
+        # land_type is now a dict like {"Tree cover": 60.5, "Grassland": 30.2, ...}
+        land_types = z.land_type if isinstance(z.land_type, dict) else {}
+        dominant_land = next(iter(land_types.keys()), "") if land_types else ""
+        ok_land = 0 if dominant_land in EXCLUDED_LAND else 1
 
         z.potential = round(100 * (0.7 * wpd + 0.3 * rough) * ok_land, 1)
         z.save()

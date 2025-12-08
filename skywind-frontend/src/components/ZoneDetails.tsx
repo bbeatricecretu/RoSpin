@@ -25,7 +25,15 @@ export default function ZoneDetails({ zone }: { zone: ZoneDetailsDTO }) {
           <p>Power density: {zone.power_avg} W/m²</p>
 
           <h4>Land</h4>
-          <p>Land type: {zone.land_type}</p>
+          <div className="land-type-list">
+            {Object.keys(zone.land_type).length > 0 ? (
+              Object.entries(zone.land_type).map(([type, percent]) => (
+                <p key={type}>{type}: {percent}%</p>
+              ))
+            ) : (
+              <p>No land data</p>
+            )}
+          </div>
           <p>Potential: {zone.potential}</p>
 
           <h4>Infrastructure</h4>
