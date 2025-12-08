@@ -69,3 +69,13 @@ export async function getZoneDetails(
   if (!response.ok) throw new Error("Zone details fetch failed");
   return response.json();
 }
+
+// ------------------------------------------------------------
+// GET REGION WATER MASK (GET /regions/:id/water/)
+// ------------------------------------------------------------
+export async function getRegionWater(regionId: number): Promise<any> {
+  const response = await fetch(`${API_URL}/regions/${regionId}/water/`);
+  if (!response.ok) throw new Error("Water fetch failed");
+  return response.json();
+}
+
