@@ -33,7 +33,7 @@
 .overview-box {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -44,6 +44,11 @@
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
   text-align: center;
+
+   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .overview-box h3 {
@@ -247,4 +252,116 @@
   margin-top: 10px;
   color: #256d57;
   font-size: 1.1rem;
+}
+/* Grid under the map */
+.bottom-info-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+/* Card styling for legend + potential + temperature */
+.info-card {
+  background: white;
+  padding: 14px 18px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+  text-align: center;
+}
+
+/* Legend should align left but keep spacing */
+.info-card.legend {
+  text-align: left;
+}
+
+/* Top 2 Buttons (Filter Map + Wind Rose) */
+.top-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.top-controls button {
+  flex: 1;
+  padding: 14px 0;
+  background: white;
+  border: 2px solid #cbe8df;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  transition: 0.25s ease;
+  color: #256d57;
+}
+
+/* Hover effect */
+.top-controls button:hover {
+  background: #f6fffb;
+  border-color: var(--primary);
+}
+
+/* Active state */
+.top-controls button.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* ----------------------------- */
+/* BEAUTIFUL GRADIENT THERMOMETER */
+/* ----------------------------- */
+
+.thermo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.thermo-bar {
+  margin-top: 10px;
+  width: 38px;
+  height: 170px;
+  background: #e9ecef;
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.15);
+}
+
+/* FULL GRADIENT FILL */
+.thermo-fill {
+  width: 100%;
+  position: absolute;
+  bottom: 0;
+
+  background: linear-gradient(
+    to top,
+    #4dabf7 0%,     /* blue - cold (bottom) */
+    #74c69d 40%,    /* green - mild */
+    #ffca3a 70%,    /* warm yellow */
+    #ff595e 100%    /* hot red (top) */
+  );
+
+  transition: height 0.9s ease-out;
+}
+
+
+.thermo-label {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.thermo-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2d6a4f;
+}
+
+.thermo-unit {
+  font-size: 1.1rem;
+  color: #6c757d;
 }

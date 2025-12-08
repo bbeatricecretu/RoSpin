@@ -18,10 +18,10 @@ export default function CompassBarChart({ data }: { data: Rose }) {
   const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const max = Math.max(...dirs.map((d) => data[d] || 0), 1);
 
-  const size = 260;
+  const size = 350;
   const center = size / 2;
 
-  const radius = 90;     // distance to start drawing bars
+  const radius = 85;     // distance to start drawing bars
   const barMax = 60;     // maximum bar length
 
   const angle = {
@@ -57,8 +57,8 @@ export default function CompassBarChart({ data }: { data: Rose }) {
 
             {/* Label */}
             <text
-              x={center + Math.cos(theta) * (radius + barMax + 18)}
-              y={center + Math.sin(theta) * (radius + barMax + 18)}
+              x={center + Math.cos(theta) * (radius + barMax + 22)}
+              y={center + Math.sin(theta) * (radius + barMax + 22)}
               textAnchor="middle"
               alignmentBaseline="middle"
               fontSize="12"
