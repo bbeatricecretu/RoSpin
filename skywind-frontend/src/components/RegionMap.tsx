@@ -43,8 +43,10 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
   const waterLayerRef = useRef<L.GeoJSON | null>(null);
   const gridLinesLayerRef = useRef<L.GeoJSON | null>(null);
   const gridSubstationsLayerRef = useRef<L.GeoJSON | null>(null);
-  const [reliefData, setReliefData] = useState<any>(null);
-  const reliefLayerRef = useRef<L.GeoJSON | null>(null);
+  const [reliefTileUrl, setReliefTileUrl] = useState<string | null>(null);
+  const reliefLayerRef = useRef<L.TileLayer | null>(null);
+  const [showAltitude, setShowAltitude] = useState(false);
+  const altitudeMarkersRef = useRef<L.Marker[]>([]);
 
   // ======================= GRID ==============================
 
@@ -105,7 +107,16 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
           return;
         }
 
-        setReliefData(json);
+        if (json.error) {
+          console.error("Relief generation error:", json.error);
+          return;
+        }
+
+        if (json.tile_url) {
+          setReliefTileUrl(json.tile_url);
+        } else {
+          console.warn("No tile_url in relief response:", json);
+        }
       } catch (err) {
         console.error("Relief load error:", err);
       }
@@ -144,7 +155,7 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
       />
 
       <ReliefLayerInitializer
-        reliefData={reliefData}
+        tileUrl={reliefTileUrl}
         reliefLayerRef={reliefLayerRef}
       />
 
@@ -153,6 +164,13 @@ export default function RegionMap({ region, zones, onZoneSelect }: RegionMapProp
         gridLinesLayerRef={gridLinesLayerRef}
         gridSubstationsLayerRef={gridSubstationsLayerRef}
         reliefLayerRef={reliefLayerRef}
+        showAltitude={showAltitude}
+        onAltitudeChange={setShowAltitude}
+      />
+
+      <AltitudeClickHandler
+        enabled={showAltitude}
+        altitudeMarkersRef={altitudeMarkersRef}
       />
 
       {/* REGION BORDER */}
@@ -236,84 +254,192 @@ function GridLayerInitializer({
   const map = useMap();
 
   useEffect(() => {
-    if (!map || !gridData) return;
+    if (!map || !gridData) {
+      // Clean up if gridData is removed
+      if (gridLinesLayerRef.current) {
+        map?.removeLayer(gridLinesLayerRef.current);
+        gridLinesLayerRef.current = null;
+      }
+      if (gridSubstationsLayerRef.current) {
+        map?.removeLayer(gridSubstationsLayerRef.current);
+        gridSubstationsLayerRef.current = null;
+      }
+      return;
+    }
 
     try {
       // Remove previous layers
-      if (gridLinesLayerRef.current) map.removeLayer(gridLinesLayerRef.current);
-      if (gridSubstationsLayerRef.current) map.removeLayer(gridSubstationsLayerRef.current);
+      if (gridLinesLayerRef.current) {
+        map.removeLayer(gridLinesLayerRef.current);
+        gridLinesLayerRef.current = null;
+      }
+      if (gridSubstationsLayerRef.current) {
+        map.removeLayer(gridSubstationsLayerRef.current);
+        gridSubstationsLayerRef.current = null;
+      }
 
-      // Create new line layer
-      const lineLayer = L.geoJSON(gridData.lines, {
-        style: {
-          color: "#ff0000",
-          weight: 2,
-        }
-      });
+      // Create new line layer if lines data exists
+      if (gridData.lines) {
+        const lineLayer = L.geoJSON(gridData.lines, {
+          style: {
+            color: "#ff0000",
+            weight: 2,
+          }
+        });
+        gridLinesLayerRef.current = lineLayer;
+      }
 
-      // Create new substation layer
-      const substLayer = L.geoJSON(gridData.substations, {
-        pointToLayer: (_feature, latlng) =>
-          L.circleMarker(latlng, {
-            radius: 6,
-            color: "#000",
-            weight: 1,
-            fillColor: "#ffff00",
-            fillOpacity: 1,
-          })
-      });
-
-      gridLinesLayerRef.current = lineLayer;
-      gridSubstationsLayerRef.current = substLayer;
+      // Create new substation layer if substations data exists
+      if (gridData.substations) {
+        const substLayer = L.geoJSON(gridData.substations, {
+          pointToLayer: (_feature, latlng) =>
+            L.circleMarker(latlng, {
+              radius: 6,
+              color: "#000",
+              weight: 1,
+              fillColor: "#ffff00",
+              fillOpacity: 1,
+            })
+        });
+        gridSubstationsLayerRef.current = substLayer;
+      }
 
     } catch (err) {
       console.error("Grid layer creation failed:", err);
     }
-  }, [map, gridData]);
+  }, [map, gridData, gridLinesLayerRef, gridSubstationsLayerRef]);
 
   return null;
 }
 
 function ReliefLayerInitializer({
-  reliefData,
+  tileUrl,
   reliefLayerRef,
 }: {
-  reliefData: any;
-  reliefLayerRef: React.MutableRefObject<L.GeoJSON | null>;
+  tileUrl: string | null;
+  reliefLayerRef: React.MutableRefObject<L.TileLayer | null>;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!map || !reliefData) return;
+    if (!map || !tileUrl) {
+      // Clean up if tileUrl is removed
+      if (reliefLayerRef.current) {
+        map?.removeLayer(reliefLayerRef.current);
+        reliefLayerRef.current = null;
+      }
+      return;
+    }
 
     try {
+      // Remove previous layer if it exists
       if (reliefLayerRef.current) {
         map.removeLayer(reliefLayerRef.current);
+        reliefLayerRef.current = null;
       }
 
-      const layer = L.geoJSON(reliefData, {
-        pointToLayer: (feature: any, latlng) => {
-          const elev =
-            feature?.properties?.DEM ??
-            feature?.properties?.elevation ??
-            0;
-          const color = getReliefColor(elev);
-
-          return L.circleMarker(latlng, {
-            radius: 4,
-            fillColor: color,
-            color,
-            weight: 0,
-            fillOpacity: 0.8,
-          });
-        },
+      // Create new tile layer with the relief tiles
+      // Google Earth Engine tiles may need authentication token
+      const layer = L.tileLayer(tileUrl, {
+        opacity: 0.8, // Higher opacity for increased contrast and visibility
+        attribution: 'Elevation data: USGS SRTM',
+        zIndex: 100, // Ensure it's above base map but below other layers
+        tileSize: 256,
+        maxZoom: 18,
       });
 
       reliefLayerRef.current = layer;
+      // Note: Don't add to map here - MapLayerControl will handle visibility
     } catch (err) {
-      console.error("Failed to create relief layer:", err);
+      console.error("Failed to create relief tile layer:", err);
     }
-  }, [map, reliefData]);
+  }, [map, tileUrl, reliefLayerRef]);
+
+  return null;
+}
+
+function AltitudeClickHandler({
+  enabled,
+  altitudeMarkersRef,
+}: {
+  enabled: boolean;
+  altitudeMarkersRef: React.MutableRefObject<L.Marker[]>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    const handleMapClick = async (e: L.LeafletMouseEvent) => {
+      if (!enabled) return;
+
+      const { lat, lng } = e.latlng;
+
+      try {
+        // Fetch elevation from backend
+        const res = await fetch(
+          `http://localhost:8000/api/elevation/?lat=${lat}&lon=${lng}`
+        );
+        const data = await res.json();
+
+        if (data.error) {
+          console.error("Elevation fetch error:", data.error);
+          return;
+        }
+
+        const elevation = data.elevation;
+
+        // Create a marker with elevation popup
+        const marker = L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: "elevation-marker",
+            html: `<div style="
+              background: rgba(255, 255, 255, 0.9);
+              border: 2px solid #333;
+              border-radius: 4px;
+              padding: 4px 8px;
+              font-weight: bold;
+              font-size: 12px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            ">${elevation}m</div>`,
+            iconSize: [60, 30],
+            iconAnchor: [30, 15],
+          }),
+        });
+
+        marker.bindPopup(
+          `<div style="text-align: center;">
+            <strong>Elevation</strong><br/>
+            ${elevation} meters<br/>
+            <small>Lat: ${lat.toFixed(6)}, Lon: ${lng.toFixed(6)}</small>
+          </div>`
+        ).openPopup();
+
+        marker.addTo(map);
+        altitudeMarkersRef.current.push(marker);
+      } catch (err) {
+        console.error("Failed to fetch elevation:", err);
+      }
+    };
+
+    if (enabled) {
+      map.on("click", handleMapClick);
+    }
+
+    return () => {
+      map.off("click", handleMapClick);
+    };
+  }, [map, enabled, altitudeMarkersRef]);
+
+  // Clean up markers when disabled
+  useEffect(() => {
+    if (!enabled && altitudeMarkersRef.current.length > 0) {
+      altitudeMarkersRef.current.forEach((marker) => {
+        map?.removeLayer(marker);
+      });
+      altitudeMarkersRef.current = [];
+    }
+  }, [enabled, map, altitudeMarkersRef]);
 
   return null;
 }

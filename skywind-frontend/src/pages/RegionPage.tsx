@@ -96,8 +96,13 @@ export default function RegionPage() {
     if (!regionId) return;
 
     async function loadPower() {
-      const rows = await getRegionZonePowers(regionId, selectedTurbine);
-      setPowerRows(rows);
+      try {
+        const rows = await getRegionZonePowers(regionId, selectedTurbine);
+        setPowerRows(rows);
+      } catch (err) {
+        console.error("Failed to load zone powers:", err);
+        setPowerRows([]); // Set empty array on error
+      }
     }
 
     loadPower();
