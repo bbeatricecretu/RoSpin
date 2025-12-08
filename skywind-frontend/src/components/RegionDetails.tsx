@@ -21,7 +21,7 @@ export default function RegionDetails({ region }: { region: RegionDetailsDTO }) 
           <p>Index average: {region.index_average.toFixed(2)}</p>
           <p>Best zone: {region.max_potential_zone}</p>
 
-          <h3>Wind Rose</h3>
+          {}<h3>Wind Rose</h3>
           <pre>{JSON.stringify(region.wind_rose, null, 2)}</pre>
       </div>
   );
