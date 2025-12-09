@@ -422,48 +422,6 @@ def compute_potential(zones):
         # S_land_effective already includes buildable fraction penalty
         z.potential = round(100 * S_base * S_land_effective, 1)
         z.save()
-        - Zone must have ≥70% buildable area (non-excluded classes)
-        - S_land computed as weighted average over buildable area only
-        - Different land types contribute proportionally to their coverage
-    
-    Example:
-        Zone with: Grassland 45%, Cropland 30%, Tree cover 20%, Built-up 5%
-        - Buildable fraction: 95% (passes 70% threshold → M_land = 1)
-        - S_land = (0.45×1.0 + 0.30×0.9 + 0.20×0.4) / 0.95 = 0.84
-        - If S_base = 0.8, then potential = 100 × 0.8 × (1 × 0.84) = 67.2
-    
-    Interpretation:
-        - 0-20: Poor (red) - Not viable for development
-        - 20-40: Marginal (orange) - Low viability
-        - 40-70: Fair (yellow) - Moderate potential
-        - 70-100: Good (green) - High development potential
-    
-    Component Weights:
-        - Wind resource: 70% (primary driver)
-        - Terrain: 30% (construction feasibility)
-        - Land: multiplicative factor (site-specific constraints)
-    """
-    for z in zones:
-        # Wind component (normalized wind power density)
-        wpd = (z.power_avg or 0.0) / 800
-        S_wind = min(1.25, wpd)  # Cap at 1.25 for exceptional sites
-        
-        # Terrain component (smoothness score)
-        S_terrain = 1 - min(1.0, (z.roughness or 0.0) / 50)
-        
-        # Land suitability component
-        land_types = z.land_type if isinstance(z.land_type, dict) else {}
-        S_land, M_land, F_buildable = compute_land_suitability(land_types)
-        
-        # Combined land factor
-        F_land = M_land * S_land
-        
-        # Base score (wind + terrain)
-        S_base = 0.7 * S_wind + 0.3 * S_terrain
-        
-        # Final potential (base score modulated by land suitability)
-        z.potential = round(100 * S_base * F_land, 1)
-        z.save()
 
 # ---------------------------------------------------------
 # REGION ATTRIBUTES
