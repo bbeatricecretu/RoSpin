@@ -45,7 +45,7 @@ def reverse_land_type_to_string(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analysis', '0001_initial'),
+        ('analysis', '0004_infrastructure_remove_zone_land_usage_and_more'),
     ]
 
     operations = [
