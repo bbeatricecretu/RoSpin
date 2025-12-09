@@ -126,9 +126,9 @@ def compute_altitude_roughness_dem(zones, fc, zone_map):
         if not z:
             continue
 
-        z.min_alt = round(float(props.get("elevation_min", 0.0)), 2)
-        z.max_alt = round(float(props.get("elevation_max", 0.0)), 2)
-        z.roughness = round(float(props.get("tri_stdDev", 0.0)), 2)
+        z.min_alt = round(float(props.get("elevation_min") or 0.0), 2)
+        z.max_alt = round(float(props.get("elevation_max") or 0.0), 2)
+        z.roughness = round(float(props.get("tri_stdDev") or 0.0), 2)
         z.save()
 
 
@@ -161,7 +161,7 @@ def compute_air_density(zones, fc, zone_map):
         if not z:
             continue
 
-        z.air_density = round(float(props.get("mean", 0.0)), 3)
+        z.air_density = round(float(props.get("mean") or 0.0), 3)
         z.save()
 
 
@@ -194,7 +194,7 @@ def compute_WIND_power_density(zones, fc, zone_map):
         if not z:
             continue
 
-        z.power_avg = round(float(props.get("mean", 0.0)), 1)
+        z.power_avg = round(float(props.get("mean") or 0.0), 1)
         z.save()
 
 
