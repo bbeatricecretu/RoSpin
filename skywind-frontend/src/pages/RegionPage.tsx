@@ -152,7 +152,21 @@ export default function RegionPage() {
   // EXPORT JSON + CSV
   // --------------------------------------
   function exportJSON() {
-    const data = { region, zones };
+    // Remove unwanted fields from region
+    const cleanRegion = region ? {
+      ...region,
+      infrastructure_rating: undefined,
+      index_average: undefined,
+      max_potential_zone: undefined
+    } : null;
+
+    // Remove infrastructure_id from each zone
+    const cleanZones = zones.map(z => {
+      const { infrastructure_id, ...rest } = z;
+      return rest;
+    });
+
+    const data = { region: cleanRegion, zones: cleanZones };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
