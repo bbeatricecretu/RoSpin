@@ -40,6 +40,7 @@ export default function RegionPage() {
   const [region, setRegion] = useState<RegionDetailsDTO | null>(null);
   const [zones, setZones] = useState<ZoneDetailsDTO[]>([]);
   const [selectedZone, setSelectedZone] = useState<ZoneDetailsDTO | null>(null);
+  const [hoveredZoneId, setHoveredZoneId] = useState<number | null>(null);
 
   const [selectedTurbine, setSelectedTurbine] = useState<number>(1);
   const [powerRows, setPowerRows] = useState<any[]>([]);
@@ -171,6 +172,10 @@ export default function RegionPage() {
     let csv = "Zone ID,Potential,Avg Wind Speed,Wind Direction,Min Alt,Max Alt,Roughness,Air Density,Power Avg,Land Type\n";
 
     zones.forEach(z => {
+      const landTypeStr = typeof z.land_type === 'object' 
+        ? JSON.stringify(z.land_type).replace(/,/g, ';') 
+        : String(z.land_type).replace(/,/g, ';');
+      
       csv += [
         z.id,
         z.potential,
@@ -181,7 +186,7 @@ export default function RegionPage() {
         z.roughness,
         z.air_density,
         z.power_avg,
-        z.land_type.replace(',', ';')
+        `"${landTypeStr}"`
       ].join(",") + "\n";
     });
 
@@ -255,6 +260,8 @@ export default function RegionPage() {
           <RegionMap
             region={region!}
             zones={zones}
+            selectedZone={selectedZone}
+            hoveredZoneId={hoveredZoneId}
             onZoneSelect={async (id) => {
               const z = await getZoneDetails(id);
               setSelectedZone(z);
@@ -397,6 +404,8 @@ export default function RegionPage() {
                 {top5.map((z) => (
                   <li
                     key={z.id}
+                    onMouseEnter={() => setHoveredZoneId(z.id)}
+                    onMouseLeave={() => setHoveredZoneId(null)}
                     onClick={async () => {
                       const full = await getZoneDetails(z.id);
                       setSelectedZone(full);
