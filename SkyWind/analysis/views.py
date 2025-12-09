@@ -5,13 +5,17 @@ from .models import Region, RegionGrid, Zone, Point, Infrastructure, WindTurbine
 from analysis.core.gee_service import compute_gee_for_grid
 from .core.geometry import compute_region_corners, generate_zone_grid
 import json
+from .services.relief_gee import get_relief_points
+
 
 # ------------------------------------------------------------
 # REGION DETAILS (AUTO-GEE IF NEEDED)
 # ------------------------------------------------------------
 def get_region_details(request, region_id):
     try:
-        r = Region.objects.select_related("A", "B", "C", "D", "center").get(pk=region_id)
+        r = Region.objects.select_related("A", "B", "C", "D", "center").get(
+            pk=region_id
+        )
     except Region.DoesNotExist:
         return JsonResponse({"error": "Region not found"}, status=404)
 
@@ -21,53 +25,53 @@ def get_region_details(request, region_id):
     if grid and r.avg_temperature == 0:
         compute_gee_for_grid(grid)
 
-    return JsonResponse({
-        "id": r.id,
-
-        # geometry
-        "center": {"lat": r.center.lat, "lon": r.center.lon},
-        "A": {"lat": r.A.lat, "lon": r.A.lon},
-        "B": {"lat": r.B.lat, "lon": r.B.lon},
-        "C": {"lat": r.C.lat, "lon": r.C.lon},
-        "D": {"lat": r.D.lat, "lon": r.D.lon},
-
-        # region metrics
-        "avg_temperature": r.avg_temperature,
-        "wind_rose": r.wind_rose,
-        "rating": r.rating,
-        "avg_potential": r.avg_potential,
-        "infrastructure_rating": r.infrastructure_rating,
-        "index_average": r.index_average,
-        "max_potential_zone": r.max_potential.id if r.max_potential else None,
-    })
+    return JsonResponse(
+        {
+            "id": r.id,
+            # geometry
+            "center": {"lat": r.center.lat, "lon": r.center.lon},
+            "A": {"lat": r.A.lat, "lon": r.A.lon},
+            "B": {"lat": r.B.lat, "lon": r.B.lon},
+            "C": {"lat": r.C.lat, "lon": r.C.lon},
+            "D": {"lat": r.D.lat, "lon": r.D.lon},
+            # region metrics
+            "avg_temperature": r.avg_temperature,
+            "wind_rose": r.wind_rose,
+            "rating": r.rating,
+            "avg_potential": r.avg_potential,
+            "infrastructure_rating": r.infrastructure_rating,
+            "index_average": r.index_average,
+            "max_potential_zone": r.max_potential.id if r.max_potential else None,
+        }
+    )
 
 
 def get_region_zones(request, region_id):
-    zones = Zone.objects.filter(
-        grid__region_id=region_id
-    ).select_related("A", "B", "C", "D")
+    zones = Zone.objects.filter(grid__region_id=region_id).select_related(
+        "A", "B", "C", "D"
+    )
 
     result = []
     for z in zones:
-        result.append({
-            "id": z.id,
-            "zone_index": z.zone_index,
-
-            "A": {"lat": z.A.lat, "lon": z.A.lon},
-            "B": {"lat": z.B.lat, "lon": z.B.lon},
-            "C": {"lat": z.C.lat, "lon": z.C.lon},
-            "D": {"lat": z.D.lat, "lon": z.D.lon},
-
-            "avg_wind_speed": z.avg_wind_speed,
-            "min_alt": z.min_alt,
-            "max_alt": z.max_alt,
-            "roughness": z.roughness,
-            "air_density": z.air_density,
-            "power_avg": z.power_avg,
-            "land_type": z.land_type,
-            "potential": z.potential,
-            "infrastructure_id": z.infrastructure.id if z.infrastructure else None,
-        })
+        result.append(
+            {
+                "id": z.id,
+                "zone_index": z.zone_index,
+                "A": {"lat": z.A.lat, "lon": z.A.lon},
+                "B": {"lat": z.B.lat, "lon": z.B.lon},
+                "C": {"lat": z.C.lat, "lon": z.C.lon},
+                "D": {"lat": z.D.lat, "lon": z.D.lon},
+                "avg_wind_speed": z.avg_wind_speed,
+                "min_alt": z.min_alt,
+                "max_alt": z.max_alt,
+                "roughness": z.roughness,
+                "air_density": z.air_density,
+                "power_avg": z.power_avg,
+                "land_type": z.land_type,
+                "potential": z.potential,
+                "infrastructure_id": z.infrastructure.id if z.infrastructure else None,
+            }
+        )
 
     return JsonResponse(result, safe=False)
 
@@ -95,50 +99,46 @@ def get_zone_details(request, zone_id):
             "A", "B", "C", "D", "infrastructure", "grid", "grid__region"
         ).get(pk=zone_id)
 
-    return JsonResponse({
-
-        "id": z.id,
-        "zone_index": z.zone_index,
-        "region_id": z.grid.region.id,
-        "grid_id": z.grid.id,
-
-        # geometry
-        "A": {"lat": z.A.lat, "lon": z.A.lon},
-        "B": {"lat": z.B.lat, "lon": z.B.lon},
-        "C": {"lat": z.C.lat, "lon": z.C.lon},
-        "D": {"lat": z.D.lat, "lon": z.D.lon},
-
-        # wind
-        "avg_wind_speed": z.avg_wind_speed,
-        "wind_direction": z.wind_direction,
-
-        # terrain
-        "min_alt": z.min_alt,
-        "max_alt": z.max_alt,
-        "roughness": z.roughness,
-
-        # air + power
-        "air_density": z.air_density,
-        "power_avg": z.power_avg,
-
-        # classification
-        "land_type": z.land_type,
-        "potential": z.potential,
-
-        # infra
-        "infrastructure": {
-            "index": z.infrastructure.index,
-            "km_jud": z.infrastructure.km_jud,
-            "km_nat": z.infrastructure.km_nat,
-            "km_euro": z.infrastructure.km_euro,
-            "km_auto": z.infrastructure.km_auto,
+    return JsonResponse(
+        {
+            "id": z.id,
+            "zone_index": z.zone_index,
+            "region_id": z.grid.region.id,
+            "grid_id": z.grid.id,
+            # geometry
+            "A": {"lat": z.A.lat, "lon": z.A.lon},
+            "B": {"lat": z.B.lat, "lon": z.B.lon},
+            "C": {"lat": z.C.lat, "lon": z.C.lon},
+            "D": {"lat": z.D.lat, "lon": z.D.lon},
+            # wind
+            "avg_wind_speed": z.avg_wind_speed,
+            "wind_direction": z.wind_direction,
+            # terrain
+            "min_alt": z.min_alt,
+            "max_alt": z.max_alt,
+            "roughness": z.roughness,
+            # air + power
+            "air_density": z.air_density,
+            "power_avg": z.power_avg,
+            # classification
+            "land_type": z.land_type,
+            "potential": z.potential,
+            # infra
+            "infrastructure": {
+                "index": z.infrastructure.index,
+                "km_jud": z.infrastructure.km_jud,
+                "km_nat": z.infrastructure.km_nat,
+                "km_euro": z.infrastructure.km_euro,
+                "km_auto": z.infrastructure.km_auto,
+            },
         }
-    })
+    )
 
 
 # ----------------------------
 # POINT HELPERS
 # ----------------------------
+
 
 def _get_or_reuse_point(lat, lon):
     """
@@ -155,6 +155,7 @@ def _get_or_reuse_point(lat, lon):
 # ----------------------------
 # GEOMETRY MATCH CHECK
 # ----------------------------
+
 
 def _zones_match_expected(grid: RegionGrid) -> bool:
     """Compare existing zone geometry with expected geometry."""
@@ -184,14 +185,14 @@ def _zones_match_expected(grid: RegionGrid) -> bool:
         for cell in row:
             z = zones[idx]
             if (
-                abs(z.A.lat - cell["A"][0]) > tolerance or
-                abs(z.A.lon - cell["A"][1]) > tolerance or
-                abs(z.B.lat - cell["B"][0]) > tolerance or
-                abs(z.B.lon - cell["B"][1]) > tolerance or
-                abs(z.C.lat - cell["C"][0]) > tolerance or
-                abs(z.C.lon - cell["C"][1]) > tolerance or
-                abs(z.D.lat - cell["D"][0]) > tolerance or
-                abs(z.D.lon - cell["D"][1]) > tolerance
+                abs(z.A.lat - cell["A"][0]) > tolerance
+                or abs(z.A.lon - cell["A"][1]) > tolerance
+                or abs(z.B.lat - cell["B"][0]) > tolerance
+                or abs(z.B.lon - cell["B"][1]) > tolerance
+                or abs(z.C.lat - cell["C"][0]) > tolerance
+                or abs(z.C.lon - cell["C"][1]) > tolerance
+                or abs(z.D.lat - cell["D"][0]) > tolerance
+                or abs(z.D.lon - cell["D"][1]) > tolerance
             ):
                 return False
             idx += 1
@@ -202,6 +203,7 @@ def _zones_match_expected(grid: RegionGrid) -> bool:
 # ----------------------------
 # ZONE GENERATION
 # ----------------------------
+
 
 def _generate_zones_for_grid(grid: RegionGrid):
     """Generate NEW zones using ALREADY computed region/grid corners."""
@@ -233,7 +235,10 @@ def _generate_zones_for_grid(grid: RegionGrid):
 
             z = Zone.objects.create(
                 grid=grid,
-                A=A_z, B=B_z, C=C_z, D=D_z,
+                A=A_z,
+                B=B_z,
+                C=C_z,
+                D=D_z,
                 infrastructure=infra,
                 zone_index=zone_index,
             )
@@ -255,6 +260,7 @@ def _delete_grid_zones(grid: RegionGrid):
 # ----------------------------
 # MAIN ENDPOINT: COMPUTE REGION
 # ----------------------------
+
 
 @csrf_exempt
 def compute_region(request):
@@ -288,7 +294,9 @@ def compute_region(request):
         existing_region = None
 
         # Get all regions at this center
-        regions_at_center = Region.objects.filter(center=center_pt).prefetch_related('grids')
+        regions_at_center = Region.objects.filter(center=center_pt).prefetch_related(
+            "grids"
+        )
 
         for reg in regions_at_center:
             # Check if this region has a grid with matching side_km
@@ -301,10 +309,7 @@ def compute_region(request):
             region = existing_region
         else:
             # Create NEW region (different side_km or new location)
-            region = Region.objects.create(
-                center=center_pt,
-                A=A, B=B, C=C, D=D
-            )
+            region = Region.objects.create(center=center_pt, A=A, B=B, C=C, D=D)
 
         # Update region corners
         region.A = A
@@ -315,9 +320,7 @@ def compute_region(request):
 
         # 4) REGION GRID (get existing or create new)
         grid, grid_created = RegionGrid.objects.get_or_create(
-            region=region,
-            side_km=side_km,
-            zones_per_edge=zpe
+            region=region, side_km=side_km, zones_per_edge=zpe
         )
 
         # Update grid corners
@@ -328,10 +331,7 @@ def compute_region(request):
         grid.save()
 
         # 5) ZONES – regenerate only when needed
-        need_regeneration = (
-            not grid.zones.exists() or
-            not _zones_match_expected(grid)
-        )
+        need_regeneration = not grid.zones.exists() or not _zones_match_expected(grid)
 
         if need_regeneration:
             # Delete old zones before creating new ones
@@ -351,26 +351,32 @@ def compute_region(request):
         "D": {"lat": region.D.lat, "lon": region.D.lon},
     }
 
-    resp_zones = [{
-        "id": z.id,
-        "index": z.zone_index,
-        "A": {"lat": z.A.lat, "lon": z.A.lon},
-        "B": {"lat": z.B.lat, "lon": z.B.lon},
-        "C": {"lat": z.C.lat, "lon": z.C.lon},
-        "D": {"lat": z.D.lat, "lon": z.D.lon},
-    } for z in zones]
+    resp_zones = [
+        {
+            "id": z.id,
+            "index": z.zone_index,
+            "A": {"lat": z.A.lat, "lon": z.A.lon},
+            "B": {"lat": z.B.lat, "lon": z.B.lon},
+            "C": {"lat": z.C.lat, "lon": z.C.lon},
+            "D": {"lat": z.D.lat, "lon": z.D.lon},
+        }
+        for z in zones
+    ]
 
-    return JsonResponse({
-        "region_id": region.id,
-        "center": {"lat": lat, "lon": lon},
-        "corners": resp_corners,
-        "zones": resp_zones,
-    })
+    return JsonResponse(
+        {
+            "region_id": region.id,
+            "center": {"lat": lat, "lon": lon},
+            "corners": resp_corners,
+            "zones": resp_zones,
+        }
+    )
 
 
 # ------------------------------------------------------------
 # NEW: REGION ZONE POWERS (TURBINE-SPECIFIC)
 # ------------------------------------------------------------
+
 
 def get_region_zone_powers(request, region_id):
     """
@@ -400,18 +406,87 @@ def get_region_zone_powers(request, region_id):
     for item in zone_powers:
         z = item["zone"]
         power_kw = item["power_kw"]
-        result.append({
-            "id": z.id,
-            "zone_index": z.zone_index,
-
-            "A": {"lat": z.A.lat, "lon": z.A.lon},
-            "B": {"lat": z.B.lat, "lon": z.B.lon},
-            "C": {"lat": z.C.lat, "lon": z.C.lon},
-            "D": {"lat": z.D.lat, "lon": z.D.lon},
-
-            "power_kw": power_kw,
-            "avg_wind_speed": z.avg_wind_speed,
-            "air_density": z.air_density,
-        })
+        result.append(
+            {
+                "id": z.id,
+                "zone_index": z.zone_index,
+                "A": {"lat": z.A.lat, "lon": z.A.lon},
+                "B": {"lat": z.B.lat, "lon": z.B.lon},
+                "C": {"lat": z.C.lat, "lon": z.C.lon},
+                "D": {"lat": z.D.lat, "lon": z.D.lon},
+                "power_kw": power_kw,
+                "avg_wind_speed": z.avg_wind_speed,
+                "air_density": z.air_density,
+            }
+        )
 
     return JsonResponse(result, safe=False)
+
+
+from django.http import JsonResponse
+from analysis.models import Region
+from analysis.services.water_gee import get_water_polygons
+
+
+def get_water(request, region_id):
+    try:
+        region = Region.objects.select_related("A", "B", "C", "D").get(id=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
+
+    # Create bounding coords
+    lats = [region.A.lat, region.B.lat, region.C.lat, region.D.lat]
+    lons = [region.A.lon, region.B.lon, region.C.lon, region.D.lon]
+
+    try:
+        water_fc = get_water_polygons(min(lats), min(lons), max(lats), max(lons))
+    except Exception as e:
+        # Always return VALID JSON so React doesn't die
+        return JsonResponse(
+            {"type": "FeatureCollection", "features": [], "error": str(e)}
+        )
+
+    return JsonResponse(water_fc)
+
+
+from .services.grid_osm import get_grid_infrastructure
+from .models import Region
+from django.http import JsonResponse
+
+
+def get_region_grid(request, region_id):
+    try:
+        r = Region.objects.get(pk=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
+
+    # Compute region bounding box
+    lat_min = min(r.A.lat, r.B.lat, r.C.lat, r.D.lat)
+    lat_max = max(r.A.lat, r.B.lat, r.C.lat, r.D.lat)
+    lon_min = min(r.A.lon, r.B.lon, r.C.lon, r.D.lon)
+    lon_max = max(r.A.lon, r.B.lon, r.C.lon, r.D.lon)
+
+    grid = get_grid_infrastructure(lat_min, lon_min, lat_max, lon_max)
+
+    return JsonResponse(grid, safe=False)
+
+
+from django.http import JsonResponse
+
+
+def get_region_relief(request, region_id):
+    try:
+        r = Region.objects.select_related("A", "B", "C", "D").get(pk=region_id)
+    except Region.DoesNotExist:
+        return JsonResponse({"error": "Region not found"}, status=404)
+
+    # Bounding box from region corners
+    lat_vals = [r.A.lat, r.B.lat, r.C.lat, r.D.lat]
+    lon_vals = [r.A.lon, r.B.lon, r.C.lon, r.D.lon]
+
+    lat_min, lat_max = min(lat_vals), max(lat_vals)
+    lon_min, lon_max = min(lon_vals), max(lon_vals)
+
+    data = get_relief_points(lat_min, lon_min, lat_max, lon_max)
+
+    return JsonResponse(data, safe=False)
