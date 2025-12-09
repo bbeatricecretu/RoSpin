@@ -275,12 +275,27 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"❌ Land cover error: {e}"))
 
             # -------------------------------------------------------------
-            # STEP 7 — Potential scoring
+            # STEP 7 — Potential scoring with gradual land suitability
             # -------------------------------------------------------------
             try:
                 self.stdout.write(self.style.NOTICE("📈 Potential..."))
 
-                EXCLUDED = {
+                # Land suitability scores for each land cover class
+                LAND_SUITABILITY_SCORES = {
+                    "Grassland": 1.0,
+                    "Bare / sparse": 1.0,
+                    "Cropland": 0.9,
+                    "Shrubland": 1.0,
+                    "Tree cover": 0.4,
+                    "Moss / lichen": 0.4,
+                    "Built-up": 0.0,
+                    "Permanent water": 0.0,
+                    "Herbaceous wetland": 0.0,
+                    "Snow / ice": 0.0,
+                    "Mangroves": 0.0,
+                }
+
+                HARD_EXCLUSION = {
                     "Built-up",
                     "Permanent water",
                     "Herbaceous wetland",
@@ -288,15 +303,48 @@ class Command(BaseCommand):
                     "Mangroves",
                 }
 
+                def compute_land_suitability(land_type_dict):
+                    """Calculate land suitability with gradual buildable fraction penalty."""
+                    if not land_type_dict:
+                        return 0.0, 0.0
+                    
+                    buildable_fraction = 0.0
+                    weighted_suitability = 0.0
+                    
+                    for land_class, percentage in land_type_dict.items():
+                        fraction = percentage / 100.0
+                        suitability = LAND_SUITABILITY_SCORES.get(land_class, 0.5)
+                        
+                        if land_class not in HARD_EXCLUSION:
+                            buildable_fraction += fraction
+                            weighted_suitability += fraction * suitability
+                    
+                    # No hard threshold - gradual penalty
+                    if buildable_fraction > 0:
+                        S_land = weighted_suitability / buildable_fraction
+                    else:
+                        S_land = 0.0
+                    
+                    # Effective land score includes buildable fraction penalty
+                    S_land_effective = S_land * buildable_fraction
+                    
+                    return S_land_effective, buildable_fraction
+
                 def score(z):
-                    wpd = (z.power_avg or 0.0) / 800
-                    wpd = min(1.25, wpd)
-                    rough = 1 - min(1.0, (z.roughness or 0.0) / 50)
-                    # land_type is now a dict - check if dominant (first) land type is excluded
+                    # Wind component
+                    S_wind = min(1.25, (z.power_avg or 0.0) / 800)
+                    
+                    # Terrain component
+                    S_terrain = 1 - min(1.0, (z.roughness or 0.0) / 50)
+                    
+                    # Land suitability component (gradual)
                     land_types = z.land_type if isinstance(z.land_type, dict) else {}
-                    dominant_land = next(iter(land_types.keys()), "") if land_types else ""
-                    ok_land = 0 if dominant_land in EXCLUDED else 1
-                    return round(100 * (0.7 * wpd + 0.3 * rough) * ok_land, 1)
+                    S_land_effective, _ = compute_land_suitability(land_types)
+                    
+                    # Combined calculation
+                    S_base = 0.7 * S_wind + 0.3 * S_terrain
+                    
+                    return round(100 * S_base * S_land_effective, 1)
 
                 for z in zones:
                     z.potential = score(z)

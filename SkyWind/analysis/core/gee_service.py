@@ -262,7 +262,28 @@ def compute_land_cover(zones, fc, zone_map):
         z.save()
 
 
-EXCLUDED_LAND = {
+# ---------------------------------------------------------
+# LAND SUITABILITY SCORING
+# ---------------------------------------------------------
+
+# Suitability scores for each ESA WorldCover land class
+# Scale: 0.0 (completely unsuitable) to 1.0 (ideal for wind farms)
+LAND_SUITABILITY_SCORES = {
+    "Grassland": 1.0,           # Open, ideal terrain
+    "Bare / sparse": 1.0,       # Open, minimal vegetation
+    "Cropland": 0.9,            # Generally usable, some constraints
+    "Shrubland": 1.0,           # Open, suitable for development
+    "Tree cover": 0.4,          # Clearing/environment issues, access difficulties
+    "Moss / lichen": 0.4,       # Tundra-like, fragile soils
+    "Built-up": 0.0,            # Hard exclusion - urban areas
+    "Permanent water": 0.0,     # Hard exclusion - water bodies
+    "Herbaceous wetland": 0.0,  # Hard exclusion - protected wetlands
+    "Snow / ice": 0.0,          # Hard exclusion - permanent ice
+    "Mangroves": 0.0,           # Hard exclusion - protected coastal
+}
+
+# Hard exclusion classes (score = 0.0)
+HARD_EXCLUSION_CLASSES = {
     "Built-up",
     "Permanent water",
     "Herbaceous wetland",
@@ -270,40 +291,178 @@ EXCLUDED_LAND = {
     "Mangroves",
 }
 
+
+def compute_land_suitability(land_type_dict):
+    """
+    Calculate land suitability index from land cover composition.
+    
+    Args:
+        land_type_dict: Dictionary of land types with percentages
+                       e.g., {"Grassland": 45.2, "Cropland": 30.1, "Tree cover": 20.0, "Built-up": 4.7}
+    
+    Returns:
+        tuple: (S_land, F_buildable)
+            - S_land: Land suitability index [0-1] based on all land types
+            - F_buildable: Fraction of zone that is buildable [0-1]
+    
+    Methodology:
+        1. Calculate buildable fraction (area not in hard exclusion classes)
+        2. Compute area-weighted suitability score over buildable area only
+        3. No hard threshold - even zones with low buildable fraction get scored
+    
+    Formula:
+        F_buildable = Σ(f_c) for c ∉ hard exclusion classes
+        
+        S_land = Σ(f_c × s_c) / F_buildable for c ∉ hard exclusion classes
+        
+    where:
+        f_c = fractional area of class c (percentage / 100)
+        s_c = suitability score for class c
+        
+    Note: Even if F_buildable is low (e.g., 20%), S_land will reflect that
+          buildable portion's quality, and the low fraction naturally reduces
+          the final potential through the weighted calculation.
+    """
+    if not land_type_dict:
+        return 0.0, 0.0
+    
+    # Convert percentages to fractions
+    total_fraction = 0.0
+    buildable_fraction = 0.0
+    weighted_suitability = 0.0
+    
+    for land_class, percentage in land_type_dict.items():
+        fraction = percentage / 100.0  # Convert percentage to fraction
+        total_fraction += fraction
+        
+        # Get suitability score (default to 0.5 for unknown classes)
+        suitability = LAND_SUITABILITY_SCORES.get(land_class, 0.5)
+        
+        # Track buildable area (non-excluded classes)
+        if land_class not in HARD_EXCLUSION_CLASSES:
+            buildable_fraction += fraction
+            weighted_suitability += fraction * suitability
+    
+    # Calculate land suitability index (normalized over buildable area)
+    # If no buildable area, return 0
+    if buildable_fraction > 0:
+        S_land = weighted_suitability / buildable_fraction
+    else:
+        S_land = 0.0
+    
+    # Natural penalty: multiply by buildable fraction
+    # This way 20% buildable with perfect land (S_land=1.0) gives 0.2 final contribution
+    # More gradual than hard cutoff, but still heavily penalizes unsuitable zones
+    S_land_effective = S_land * buildable_fraction
+    
+    return S_land_effective, buildable_fraction
+
+
 def compute_potential(zones):
     """
-    STEP 7: Calculate overall site suitability score.
+    STEP 7: Calculate overall site suitability score with gradual land assessment.
     
-    Formula: potential = 100 × (0.7 × wpd_norm + 0.3 × roughness_penalty) × land_ok
+    Formula: potential = 100 × S_base × S_land_effective
     
     Where:
-        - wpd_norm = min(1.25, power_avg / 800)  [0-1.25 scale]
-        - roughness_penalty = 1 - min(1.0, roughness / 50)  [1=flat, 0=rough]
-        - land_ok = 0 if excluded land type, else 1
+        S_base = 0.7 × S_wind + 0.3 × S_terrain
+        
+        S_wind = min(1.25, power_avg / 800)  [normalized wind power density]
+        S_terrain = 1 - min(1.0, roughness / 50)  [terrain smoothness: 1=flat, 0=rough]
+        
+        S_land_effective = (S_land_quality × F_buildable)
+        S_land_quality = weighted suitability of buildable area [0-1]
+        F_buildable = fraction of buildable land [0-1]
     
-    What: Final score 0-100
-    Why: Combines all factors into single ranking metric
+    Land Suitability Approach:
+        - Each land cover class has a suitability score s_c ∈ [0,1]
+        - Hard exclusion classes (urban, water, wetlands) have s_c = 0
+        - S_land_quality reflects quality of buildable portion
+        - F_buildable naturally penalizes zones with much excluded land
+        - NO hard threshold - even 20% buildable zones get low but non-zero score
+    
+    Example:
+        Zone A: 80% water, 20% grassland (perfect buildable land)
+        - S_land_quality = 1.0 (grassland is perfect)
+        - F_buildable = 0.2
+        - S_land_effective = 1.0 × 0.2 = 0.2
+        - If S_base = 0.8, then potential = 100 × 0.8 × 0.2 = 16.0 (Poor, but not 0)
+        
+        Zone B: 50% water, 50% grassland
+        - S_land_effective = 1.0 × 0.5 = 0.5
+        - If S_base = 0.8, then potential = 100 × 0.8 × 0.5 = 40.0 (Marginal)
     
     Interpretation:
-        - 0-20: Poor (red) - Not viable
+        - 0-20: Poor (red) - Not viable for development
         - 20-40: Marginal (orange) - Low viability
         - 40-70: Fair (yellow) - Moderate potential
-        - 70-100: Good (green) - High potential
+        - 70-100: Good (green) - High development potential
     
-    Weights: 70% power density, 30% terrain smoothness
+    Component Weights:
+        - Wind resource: 70% (primary driver)
+        - Terrain: 30% (construction feasibility)
+        - Land: multiplicative factor (site-specific constraints, gradual penalty)
     """
     for z in zones:
+        # Wind component (normalized wind power density)
         wpd = (z.power_avg or 0.0) / 800
-        wpd = min(1.25, wpd)
-        rough = 1 - min(1.0, (z.roughness or 0.0) / 50)
+        S_wind = min(1.25, wpd)  # Cap at 1.25 for exceptional sites
         
-        # Check if dominant land type (first key with highest %) is excluded
-        # land_type is now a dict like {"Tree cover": 60.5, "Grassland": 30.2, ...}
+        # Terrain component (smoothness score)
+        S_terrain = 1 - min(1.0, (z.roughness or 0.0) / 50)
+        
+        # Land suitability component (gradual, no hard cutoff)
         land_types = z.land_type if isinstance(z.land_type, dict) else {}
-        dominant_land = next(iter(land_types.keys()), "") if land_types else ""
-        ok_land = 0 if dominant_land in EXCLUDED_LAND else 1
-
-        z.potential = round(100 * (0.7 * wpd + 0.3 * rough) * ok_land, 1)
+        S_land_effective, F_buildable = compute_land_suitability(land_types)
+        
+        # Base score (wind + terrain)
+        S_base = 0.7 * S_wind + 0.3 * S_terrain
+        
+        # Final potential (base score modulated by land suitability)
+        # S_land_effective already includes buildable fraction penalty
+        z.potential = round(100 * S_base * S_land_effective, 1)
+        z.save()
+        - Zone must have ≥70% buildable area (non-excluded classes)
+        - S_land computed as weighted average over buildable area only
+        - Different land types contribute proportionally to their coverage
+    
+    Example:
+        Zone with: Grassland 45%, Cropland 30%, Tree cover 20%, Built-up 5%
+        - Buildable fraction: 95% (passes 70% threshold → M_land = 1)
+        - S_land = (0.45×1.0 + 0.30×0.9 + 0.20×0.4) / 0.95 = 0.84
+        - If S_base = 0.8, then potential = 100 × 0.8 × (1 × 0.84) = 67.2
+    
+    Interpretation:
+        - 0-20: Poor (red) - Not viable for development
+        - 20-40: Marginal (orange) - Low viability
+        - 40-70: Fair (yellow) - Moderate potential
+        - 70-100: Good (green) - High development potential
+    
+    Component Weights:
+        - Wind resource: 70% (primary driver)
+        - Terrain: 30% (construction feasibility)
+        - Land: multiplicative factor (site-specific constraints)
+    """
+    for z in zones:
+        # Wind component (normalized wind power density)
+        wpd = (z.power_avg or 0.0) / 800
+        S_wind = min(1.25, wpd)  # Cap at 1.25 for exceptional sites
+        
+        # Terrain component (smoothness score)
+        S_terrain = 1 - min(1.0, (z.roughness or 0.0) / 50)
+        
+        # Land suitability component
+        land_types = z.land_type if isinstance(z.land_type, dict) else {}
+        S_land, M_land, F_buildable = compute_land_suitability(land_types)
+        
+        # Combined land factor
+        F_land = M_land * S_land
+        
+        # Base score (wind + terrain)
+        S_base = 0.7 * S_wind + 0.3 * S_terrain
+        
+        # Final potential (base score modulated by land suitability)
+        z.potential = round(100 * S_base * F_land, 1)
         z.save()
 
 # ---------------------------------------------------------
