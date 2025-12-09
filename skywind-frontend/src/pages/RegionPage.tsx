@@ -47,6 +47,13 @@ export default function RegionPage() {
   const [saved, setSaved] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"filter" | "windrose"| "zone" | "power" | "top" | "export">("zone");
 
+  // === MAP LAYERS STATE ===
+  const [showWater, setShowWater] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showRelief, setShowRelief] = useState(false);
+  const [showWind, setShowWind] = useState(false);
+  const [showAltitude, setShowAltitude] = useState(false);
+
   // === NEW: loading states ===
   const [loadingRegion, setLoadingRegion] = useState(true);
   const [loadingZones, setLoadingZones] = useState(true);
@@ -253,6 +260,12 @@ export default function RegionPage() {
               setSelectedZone(z);
               setActiveTab("zone");
             }}
+            showWater={showWater}
+            showGrid={showGrid}
+            showRelief={showRelief}
+            showWind={showWind}
+            showAltitude={showAltitude}
+            onAltitudeChange={setShowAltitude}
           />
 
            {/* BOTTOM 3-BOX SECTION */}
@@ -415,7 +428,49 @@ export default function RegionPage() {
         )}
         {activeTab === "filter" && (
               <div className="panel-card">
-                <p>No filters available yet.</p>
+                <h3>Map Layers</h3>
+                <div className="filter-options">
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showWater}
+                      onChange={(e) => setShowWater(e.target.checked)}
+                    />
+                    Show Water
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showGrid}
+                      onChange={(e) => setShowGrid(e.target.checked)}
+                    />
+                    Show Grid
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showRelief}
+                      onChange={(e) => setShowRelief(e.target.checked)}
+                    />
+                    Show Relief
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showWind}
+                      onChange={(e) => setShowWind(e.target.checked)}
+                    />
+                    Show Wind Direction
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showAltitude}
+                      onChange={(e) => setShowAltitude(e.target.checked)}
+                    />
+                    Show Altitude (Hover)
+                  </label>
+                </div>
               </div>
         )}
         </div>
