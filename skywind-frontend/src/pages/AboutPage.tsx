@@ -1,6 +1,13 @@
 import "./AboutPage.css";
-import logo from "../assets/logo.png";
-import memberImg from "../assets/member.png";
+
+/* import pozele reale */
+import memberMadi from "../assets/member_madi.png";
+import memberAle from "../assets/member_ale.png";
+import memberAlexia from "../assets/member_alexia.png";
+import memberBeatrice from "../assets/member_beatrice.png";
+import memberRazvan from "../assets/member_razvan.png";
+import memberStefan from "../assets/member_stefan.png";
+import memberVlad from "../assets/member_vlad.png";
 
 export default function AboutPage() {
   return (
@@ -29,12 +36,12 @@ export default function AboutPage() {
 
         <div className="feature-card">
           <h3>⛰ Terrain Suitability Detection</h3>
-          <p>Analyzes elevation, slope, roughness, and land classification.</p>
+          <p>Analyzes elevation, roughness, and land classification.</p>
         </div>
 
         <div className="feature-card">
-          <h3>🔌 Infrastructure Awareness</h3>
-          <p>Finds the nearest energy storage or transmission nodes.</p>
+          <h3>🧠 Automated Data Preprocessing</h3>
+          <p>Cleans, normalizes, and structures raw geospatial data for consistent analysis.</p>
         </div>
 
         <div className="feature-card">
@@ -50,49 +57,53 @@ export default function AboutPage() {
 
       <h2 className="section-title">Meet the Team</h2>
 
+      {/* ROW 1 (4 membri) */}
       <div className="team-grid-row team-row-1">
+
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 1</h3>
-          <p>Role</p>
+          <img src={memberMadi} alt="Mădălina" className="team-photo photo-mada" />
+          <h3>Mădălina</h3>
+          <p>Project Manager</p>
         </div>
 
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 2</h3>
-          <p>Role</p>
+          <img src={memberAle} alt="Alexandra" className="team-photo" />
+          <h3>Alexandra</h3>
+          <p>Frontend Lead Developer</p>
         </div>
 
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 3</h3>
-          <p>Role</p>
+          <img src={memberAlexia} alt="Alexia" className="team-photo" />
+          <h3>Alexia</h3>
+          <p>Data Processing Engineer & Frontend Developer</p>
         </div>
 
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 4</h3>
-          <p>Role</p>
+          <img src={memberBeatrice} alt="Beatrice" className="team-photo photo-bea" />
+          <h3>Beatrice</h3>
+          <p>Backend API Engineer</p>
         </div>
+
       </div>
 
+      {/* ROW 2 (3 membri) */}
       <div className="team-grid-row team-row-2">
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 5</h3>
-          <p>Role</p>
+          <img src={memberRazvan} alt="Răzvan" className="team-photo" />
+          <h3>Răzvan</h3>
+          <p>Documentation & Frontend Workflow Support</p>
         </div>
 
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 6</h3>
-          <p>Role</p>
+          <img src={memberStefan} alt="Ștefan" className="team-photo" />
+          <h3>Ștefan</h3>
+          <p>DevOps Engineer & Database Admin</p>
         </div>
 
         <div className="team-card">
-          <img src={memberImg} alt="member" className="team-photo" />
-          <h3>Member 7</h3>
-          <p>Role</p>
+          <img src={memberVlad} alt="Vlad" className="team-photo" />
+          <h3>Vlad</h3>
+          <p>Backend API Engineer</p>
         </div>
       </div>
 
