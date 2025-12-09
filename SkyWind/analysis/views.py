@@ -62,6 +62,7 @@ def get_region_zones(request, region_id):
                 "C": {"lat": z.C.lat, "lon": z.C.lon},
                 "D": {"lat": z.D.lat, "lon": z.D.lon},
                 "avg_wind_speed": z.avg_wind_speed,
+                "wind_direction": z.wind_direction,
                 "min_alt": z.min_alt,
                 "max_alt": z.max_alt,
                 "roughness": z.roughness,
