@@ -172,6 +172,10 @@ export default function RegionPage() {
     let csv = "Zone ID,Potential,Avg Wind Speed,Wind Direction,Min Alt,Max Alt,Roughness,Air Density,Power Avg,Land Type\n";
 
     zones.forEach(z => {
+      const landTypeStr = typeof z.land_type === 'object' 
+        ? JSON.stringify(z.land_type).replace(/,/g, ';') 
+        : String(z.land_type).replace(/,/g, ';');
+      
       csv += [
         z.id,
         z.potential,
@@ -182,7 +186,7 @@ export default function RegionPage() {
         z.roughness,
         z.air_density,
         z.power_avg,
-        z.land_type.replace(',', ';')
+        `"${landTypeStr}"`
       ].join(",") + "\n";
     });
 
