@@ -475,18 +475,41 @@ from django.http import JsonResponse
 
 
 def get_region_relief(request, region_id):
+    from .services.relief_gee import get_relief_tile_url
+    
     try:
         r = Region.objects.select_related("A", "B", "C", "D").get(pk=region_id)
     except Region.DoesNotExist:
         return JsonResponse({"error": "Region not found"}, status=404)
 
-    # Bounding box from region corners
-    lat_vals = [r.A.lat, r.B.lat, r.C.lat, r.D.lat]
-    lon_vals = [r.A.lon, r.B.lon, r.C.lon, r.D.lon]
+    try:
+        tile_url = get_relief_tile_url(r)
+        return JsonResponse({"tile_url": tile_url})
+    except Exception as e:
+        return JsonResponse(
+            {"error": f"Relief generation failed: {str(e)}"},
+            status=500
+        )
 
-    lat_min, lat_max = min(lat_vals), max(lat_vals)
-    lon_min, lon_max = min(lon_vals), max(lon_vals)
 
-    data = get_relief_points(lat_min, lon_min, lat_max, lon_max)
+def get_elevation(request):
+    """
+    Get elevation at a specific point.
+    Query params: lat, lon
+    """
+    from .services.relief_gee import get_elevation_at_point
+    
+    try:
+        lat = float(request.GET.get("lat"))
+        lon = float(request.GET.get("lon"))
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "lat and lon parameters are required"}, status=400)
 
-    return JsonResponse(data, safe=False)
+    try:
+        elevation = get_elevation_at_point(lat, lon)
+        return JsonResponse({"elevation": elevation, "lat": lat, "lon": lon})
+    except Exception as e:
+        return JsonResponse(
+            {"error": f"Elevation lookup failed: {str(e)}"},
+            status=500
+        )

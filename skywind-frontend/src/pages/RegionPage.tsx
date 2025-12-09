@@ -6,6 +6,11 @@ import RegionMap from "../components/RegionMap";
 import RegionDetails from "../components/RegionDetails";
 import ZoneDetails from "../components/ZoneDetails";
 
+import PotentialGauge from "../components/charts/PotentialGauge";
+import WindRoseChart from "../components/charts/WindRoseChart";
+import ThermometerBar from "../components/charts/ThermometerBar";
+
+
 import {
   getRegionDetails,
   getRegionZones,
@@ -40,7 +45,14 @@ export default function RegionPage() {
   const [powerRows, setPowerRows] = useState<any[]>([]);
 
   const [saved, setSaved] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"zone" | "power" | "top" | "export">("zone");
+  const [activeTab, setActiveTab] = useState<"filter" | "windrose"| "zone" | "power" | "top" | "export">("zone");
+
+  // === MAP LAYERS STATE ===
+  const [showWater, setShowWater] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showRelief, setShowRelief] = useState(false);
+  const [showWind, setShowWind] = useState(false);
+  const [showAltitude, setShowAltitude] = useState(false);
 
   // === NEW: loading states ===
   const [loadingRegion, setLoadingRegion] = useState(true);
@@ -91,8 +103,13 @@ export default function RegionPage() {
     if (!regionId) return;
 
     async function loadPower() {
-      const rows = await getRegionZonePowers(regionId, selectedTurbine);
-      setPowerRows(rows);
+      try {
+        const rows = await getRegionZonePowers(regionId, selectedTurbine);
+        setPowerRows(rows);
+      } catch (err) {
+        console.error("Failed to load zone powers:", err);
+        setPowerRows([]); // Set empty array on error
+      }
     }
 
     loadPower();
@@ -221,29 +238,6 @@ export default function RegionPage() {
       </div>
 
 
-      {/* OVERVIEW */}
-      {region && (
-        <div className="overview-box">
-          <div>
-            <h3>Average Potential</h3>
-            <p>{region.avg_potential.toFixed(1)} / 100</p>
-          </div>
-          <div>
-            <h3>Region Rating</h3>
-            <p>{region.rating.toFixed(1)}</p>
-          </div>
-          <div>
-            <h3>Air Density</h3>
-            <p>{region.index_average.toFixed(3)}</p>
-          </div>
-          <div>
-            <h3>Max Zone</h3>
-            <p>#{region.max_potential_zone}</p>
-          </div>
-        </div>
-      )}
-
-
       {/* MAIN CONTENT */}
       <div className="region-content">
 
@@ -257,7 +251,7 @@ export default function RegionPage() {
               <p>Loading map zones...</p>
             </div>
           )}
-
+        {/* MAP */}
           <RegionMap
             region={region!}
             zones={zones}
@@ -266,44 +260,75 @@ export default function RegionPage() {
               setSelectedZone(z);
               setActiveTab("zone");
             }}
+            showWater={showWater}
+            showGrid={showGrid}
+            showRelief={showRelief}
+            showWind={showWind}
+            showAltitude={showAltitude}
+            onAltitudeChange={setShowAltitude}
           />
 
-          {!loadingZones && (
-            <div className="legend">
-              <strong>Legend (Potential)</strong>
+           {/* BOTTOM 3-BOX SECTION */}
+           {!loadingZones && (
+            <div className="bottom-info-grid">
 
-              <div className="legend-item">
-                <span className="legend-color legend-low"></span>
-                0–20 (Very Low)
+              {/* LEGEND */}
+              <div className="info-card legend">
+                <strong>Legend (Potential)</strong>
+
+                <div className="legend-item">
+                  <span className="legend-color legend-low"></span> 0–20 (Very Low)
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color legend-low-med"></span> 20–40 (Low)
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color legend-med"></span> 40–60 (Medium)
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color legend-good"></span> 60–80 (Good)
+                </div>
+                <div className="legend-item">
+                  <span className="legend-color legend-excellent"></span> 80–100 (Excellent)
+                </div>
               </div>
 
-              <div className="legend-item">
-                <span className="legend-color legend-low-med"></span>
-                20–40 (Low)
+              {/* AVG POTENTIAL */}
+              <div className="info-card">
+                <h3>Average Potential</h3>
+                <PotentialGauge value={region.avg_potential} />
               </div>
 
-              <div className="legend-item">
-                <span className="legend-color legend-med"></span>
-                40–60 (Medium)
+              {/* AVG TEMPERATURE */}
+              <div className="info-card">
+                <h3>Avg Temperature</h3>
+                <ThermometerBar value={region.avg_temperature} />
               </div>
 
-              <div className="legend-item">
-                <span className="legend-color legend-good"></span>
-                60–80 (Good)
-              </div>
-
-              <div className="legend-item">
-                <span className="legend-color legend-excellent"></span>
-                80–100 (Excellent)
-              </div>
             </div>
-          )}
+            )}
         </div>
 
 
         {/* RIGHT PANEL */}
         <div className="right-panel">
+          {/* TOP 2 BUTTONS [ Filter Map ] [ Wind Rose ] */}
+           <div className="top-controls">
+            <button
+            className={activeTab === "filter" ? "active" : ""}
+            onClick={() => setActiveTab("filter")}
+            >
+            Filter Map
+            </button>
 
+            <button
+            className={activeTab === "windrose" ? "active" : ""}
+            onClick={() => setActiveTab("windrose")}
+            >
+            Wind Rose
+            </button>
+           </div>
+           {/*[ Zone Details ] [ Power Output ] [ Top 5 ] [ Export ] */}
           <div className="tab-bar">
             <button onClick={() => setActiveTab("zone")} className={activeTab === "zone" ? "active" : ""}>
               Zone Details
@@ -395,7 +420,59 @@ export default function RegionPage() {
               </div>
             </div>
           )}
-
+         {activeTab === "windrose" && (
+              <div className="panel-card">
+                <h3>Wind Rose</h3>
+                <WindRoseChart data={region.wind_rose} />
+              </div>
+        )}
+        {activeTab === "filter" && (
+              <div className="panel-card">
+                <h3>Map Layers</h3>
+                <div className="filter-options">
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showWater}
+                      onChange={(e) => setShowWater(e.target.checked)}
+                    />
+                    Show Water
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showGrid}
+                      onChange={(e) => setShowGrid(e.target.checked)}
+                    />
+                    Show Grid
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showRelief}
+                      onChange={(e) => setShowRelief(e.target.checked)}
+                    />
+                    Show Relief
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showWind}
+                      onChange={(e) => setShowWind(e.target.checked)}
+                    />
+                    Show Wind Direction
+                  </label>
+                  <label className="filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showAltitude}
+                      onChange={(e) => setShowAltitude(e.target.checked)}
+                    />
+                    Show Altitude (Hover)
+                  </label>
+                </div>
+              </div>
+        )}
         </div>
       </div>
 

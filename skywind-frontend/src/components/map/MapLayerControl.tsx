@@ -16,7 +16,9 @@ interface MapLayerControlProps {
   waterLayerRef: React.MutableRefObject<L.GeoJSON | null>;
   gridLinesLayerRef: React.MutableRefObject<L.GeoJSON | null>;
   gridSubstationsLayerRef: React.MutableRefObject<L.GeoJSON | null>;
-  reliefLayerRef: React.MutableRefObject<L.GeoJSON | null>;
+  reliefLayerRef: React.MutableRefObject<L.TileLayer | null>;
+  showAltitude: boolean;
+  onAltitudeChange: (show: boolean) => void;
 }
 
 export function MapLayerControl({
@@ -24,6 +26,8 @@ export function MapLayerControl({
   gridLinesLayerRef,
   gridSubstationsLayerRef,
   reliefLayerRef,
+  showAltitude,
+  onAltitudeChange,
 }: MapLayerControlProps) {
 
   const map = useMap();
@@ -56,16 +60,28 @@ export function MapLayerControl({
     const subsLayer = gridSubstationsLayerRef.current;
 
     if (showGrid) {
-      if (linesLayer) map.addLayer(linesLayer);
-      if (subsLayer) map.addLayer(subsLayer);
+      if (linesLayer && !map.hasLayer(linesLayer)) {
+        map.addLayer(linesLayer);
+      }
+      if (subsLayer && !map.hasLayer(subsLayer)) {
+        map.addLayer(subsLayer);
+      }
     } else {
-      if (linesLayer && map.hasLayer(linesLayer)) map.removeLayer(linesLayer);
-      if (subsLayer && map.hasLayer(subsLayer)) map.removeLayer(subsLayer);
+      if (linesLayer && map.hasLayer(linesLayer)) {
+        map.removeLayer(linesLayer);
+      }
+      if (subsLayer && map.hasLayer(subsLayer)) {
+        map.removeLayer(subsLayer);
+      }
     }
 
     return () => {
-      if (linesLayer && map.hasLayer(linesLayer)) map.removeLayer(linesLayer);
-      if (subsLayer && map.hasLayer(subsLayer)) map.removeLayer(subsLayer);
+      if (linesLayer && map.hasLayer(linesLayer)) {
+        map.removeLayer(linesLayer);
+      }
+      if (subsLayer && map.hasLayer(subsLayer)) {
+        map.removeLayer(subsLayer);
+      }
     };
   }, [showGrid, gridLinesLayerRef, gridSubstationsLayerRef, map]);
 
@@ -137,6 +153,18 @@ export function MapLayerControl({
             />
             <label htmlFor="relief-layer" className="text-xs">
               Relief
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="altitude-layer"
+              checked={showAltitude}
+              onCheckedChange={(checked: boolean | "indeterminate") =>
+                onAltitudeChange(checked === true)
+              }
+            />
+            <label htmlFor="altitude-layer" className="text-xs">
+              Altitude
             </label>
           </div>
 

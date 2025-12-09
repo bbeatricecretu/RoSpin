@@ -17,4 +17,5 @@ urlpatterns = [
     path("regions/<int:region_id>/water/", views.get_water),
     path("regions/<int:region_id>/grid/", views.get_region_grid),
     path("regions/<int:region_id>/relief/", views.get_region_relief),
+    path("elevation/", views.get_elevation),
 ]
