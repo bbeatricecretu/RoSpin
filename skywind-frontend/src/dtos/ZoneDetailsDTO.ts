@@ -21,7 +21,9 @@ export interface ZoneDetailsDTO {
   air_density: number;
   power_avg: number;
 
-  land_type: string;
+  // land_type: dict of land cover types with their percentage coverage
+  // e.g. {"Tree cover": 60.5, "Grassland": 25.3, "Cropland": 14.2}
+  land_type: Record<string, number>;
   potential: number;
 
   infrastructure: {
