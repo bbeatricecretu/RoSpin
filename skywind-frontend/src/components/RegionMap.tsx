@@ -32,6 +32,8 @@ function getReliefColor(elev: number) {
 type RegionMapProps = {
   region: RegionDetailsDTO;
   zones: ZoneDetailsDTO[];
+  selectedZone: ZoneDetailsDTO | null;
+  hoveredZoneId: number | null;
   onZoneSelect: (zoneId: number) => void;
   showWater: boolean;
   showGrid: boolean;
@@ -44,6 +46,8 @@ type RegionMapProps = {
 export default function RegionMap({
   region,
   zones,
+  selectedZone,
+  hoveredZoneId,
   onZoneSelect,
   showWater,
   showGrid,
@@ -190,6 +194,41 @@ export default function RegionMap({
       )}
 
       {/* ZONES */}
+      <ZonePolygons 
+        zones={zones}
+        selectedZone={selectedZone}
+        hoveredZoneId={hoveredZoneId}
+        onZoneSelect={onZoneSelect}
+      />
+    </MapContainer>
+  );
+}
+
+/* ===================== ZONE POLYGONS COMPONENT ===================== */
+
+function ZonePolygons({
+  zones,
+  selectedZone,
+  hoveredZoneId,
+  onZoneSelect,
+}: {
+  zones: ZoneDetailsDTO[];
+  selectedZone: ZoneDetailsDTO | null;
+  hoveredZoneId: number | null;
+  onZoneSelect: (zoneId: number) => void;
+}) {
+  const map = useMap();
+  const polygonRefs = useRef<{ [key: number]: L.Polygon }>({});
+
+  // Bring hovered zone to front
+  useEffect(() => {
+    if (hoveredZoneId && polygonRefs.current[hoveredZoneId]) {
+      polygonRefs.current[hoveredZoneId].bringToFront();
+    }
+  }, [hoveredZoneId]);
+
+  return (
+    <>
       {zones.map((z) => {
         const poly = [
           [z.A?.lat, z.A?.lon],
@@ -203,21 +242,33 @@ export default function RegionMap({
           return null;
         }
 
+        const isSelected = selectedZone?.id === z.id;
+        const isHovered = hoveredZoneId === z.id;
+
         return (
           <Polygon
             key={z.id}
+            ref={(ref) => {
+              if (ref) {
+                polygonRefs.current[z.id] = ref as any;
+              }
+            }}
             positions={poly as any}
-            eventHandlers={{ click: () => onZoneSelect(z.id) }}
+            eventHandlers={{ 
+              click: () => onZoneSelect(z.id)
+            }}
             pathOptions={{
-              color: "white",
-              weight: 1,
+              color: isHovered ? "#000000" : isSelected ? "#FFD700" : "white",
+              weight: isHovered ? 5 : isSelected ? 3 : 1,
               fillColor: getZoneColor(z.potential),
-              fillOpacity: 0.55,
+              fillOpacity: isHovered ? 0.85 : isSelected ? 0.75 : 0.55,
+              lineCap: "butt",
+              lineJoin: "miter",
             }}
           />
         );
       })}
-    </MapContainer>
+    </>
   );
 }
 

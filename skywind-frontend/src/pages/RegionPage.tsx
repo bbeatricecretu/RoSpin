@@ -40,6 +40,7 @@ export default function RegionPage() {
   const [region, setRegion] = useState<RegionDetailsDTO | null>(null);
   const [zones, setZones] = useState<ZoneDetailsDTO[]>([]);
   const [selectedZone, setSelectedZone] = useState<ZoneDetailsDTO | null>(null);
+  const [hoveredZoneId, setHoveredZoneId] = useState<number | null>(null);
 
   const [selectedTurbine, setSelectedTurbine] = useState<number>(1);
   const [powerRows, setPowerRows] = useState<any[]>([]);
@@ -255,6 +256,8 @@ export default function RegionPage() {
           <RegionMap
             region={region!}
             zones={zones}
+            selectedZone={selectedZone}
+            hoveredZoneId={hoveredZoneId}
             onZoneSelect={async (id) => {
               const z = await getZoneDetails(id);
               setSelectedZone(z);
@@ -397,6 +400,8 @@ export default function RegionPage() {
                 {top5.map((z) => (
                   <li
                     key={z.id}
+                    onMouseEnter={() => setHoveredZoneId(z.id)}
+                    onMouseLeave={() => setHoveredZoneId(null)}
                     onClick={async () => {
                       const full = await getZoneDetails(z.id);
                       setSelectedZone(full);
