@@ -1,0 +1,68 @@
+.zone-details-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zone-title {
+  text-align: center;
+  font-size: 1.6rem;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+/* ------- CARDS ------- */
+.detail-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  border-left: 5px solid var(--primary);
+}
+
+.detail-card h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #256d57;
+  font-size: 1.1rem;
+}
+
+/* GRID INSIDE CARDS */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+}
+
+.detail-grid p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* LAND TAGS */
+.land-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.land-tag {
+  background: #e8f6ef;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #2d6a4f;
+  border: 1px solid #bfe4d2;
+}
+
+/* POTENTIAL SPECIAL CARD */
+.potential-card {
+  text-align: center;
+}
+
+.potential-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #1b794a;
+  margin-top: 4px;
+}
