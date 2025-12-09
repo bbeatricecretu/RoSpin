@@ -77,7 +77,6 @@ export default function SavedRegionsPage() {
             <div className="saved-info">
               <h3>Region #{r.id}</h3>
               <p><strong>Avg Potential:</strong> {r.avg_potential.toFixed(1)} / 100</p>
-              <p><strong>Rating:</strong> {r.rating.toFixed(1)}</p>
             </div>
 
             <div className="saved-actions">
