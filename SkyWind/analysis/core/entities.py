@@ -42,7 +42,7 @@ class Zone:
                  air_density: float = 0.0,
                  avg_wind_speed: float = 0.0,
                  power_avg: float = 0.0,
-                 land_type: str = "",
+                 land_type: dict = None,
                  potential: float = 0.0,
 
                  infrastructure: Optional[Infrastructure] = None):
@@ -56,7 +56,7 @@ class Zone:
         self.air_density = air_density
         self.avg_wind_speed = avg_wind_speed
         self.power_avg = power_avg
-        self.land_type = land_type
+        self.land_type = land_type if land_type is not None else {}
         self.potential = potential
         self.infrastructure = infrastructure or Infrastructure()
 
