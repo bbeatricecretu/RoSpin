@@ -180,6 +180,25 @@
   text-align: left;
 }
 
+.power-table tbody tr {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.power-table tbody tr.hovered {
+  background-color: #fff3cd;
+  border: 2px solid black;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 10;
+}
+
+.turbine-power-title {
+  color: #256d57;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+}
+
 /* TOP LIST */
 .top-list {
   list-style: none;
@@ -259,6 +278,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+  align-items: start;
 }
 
 /* Card styling for legend + potential + temperature */
@@ -268,11 +288,17 @@
   border-radius: 12px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  height: 100%;
 }
 
 /* Legend should align left but keep spacing */
 .info-card.legend {
   text-align: left;
+  align-items: flex-start;
 }
 
 /* Top 2 Buttons (Filter Map + Wind Rose) */

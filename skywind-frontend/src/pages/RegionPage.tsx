@@ -376,7 +376,7 @@ export default function RegionPage() {
 
           {activeTab === "power" && (
             <div className="panel-card">
-              <h3>Turbine Power</h3>
+              <h3 className="turbine-power-title">Turbine Power</h3>
 
               <select
                 value={selectedTurbine}
@@ -398,11 +398,16 @@ export default function RegionPage() {
                 </thead>
                 <tbody>
                   {powerRows.map((r) => (
-                    <tr key={r.id}>
+                    <tr
+                      key={r.id}
+                      className={hoveredZoneId === r.id ? "hovered" : ""}
+                      onMouseEnter={() => setHoveredZoneId(r.id)}
+                      onMouseLeave={() => setHoveredZoneId(null)}
+                    >
                       <td>{r.zone_index}</td>
                       <td>{r.avg_wind_speed.toFixed(2)}</td>
                       <td>{r.air_density.toFixed(3)}</td>
-                      <td>{r.power_kw.toFixed(1)}</td>
+                      <td><strong>{r.power_kw.toFixed(1)}</strong></td>
                     </tr>
                   ))}
                 </tbody>
