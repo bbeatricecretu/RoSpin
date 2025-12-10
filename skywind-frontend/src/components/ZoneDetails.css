@@ -66,3 +66,55 @@
   color: #1b794a;
   margin-top: 4px;
 }
+
+/* WIND VISUAL */
+.wind-visual-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.wind-rose-svg {
+  width: 80px;
+  height: 80px;
+  display: block;
+  margin: 0 auto;
+}
+
+.wind-rose-text {
+  font-size: 10px;
+  font-weight: bold;
+  fill: #666;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* ALTITUDE SLIDER */
+.altitude-slider-container {
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+.altitude-slider-track {
+  position: relative;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.altitude-slider-range {
+  position: absolute;
+  height: 100%;
+  background-color: #256d57;
+  border-radius: 4px;
+  top: 0;
+}
+
+.altitude-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #666;
+}

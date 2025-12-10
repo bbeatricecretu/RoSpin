@@ -614,9 +614,8 @@ function WindLayer({
       
       // Meteorological Wind Direction (0=N, 90=E) is "FROM".
       // We want to show "TO" (Flow).
-      // Flow direction = wind_direction + 180.
-      // Math Angle (0=E, 90=N) = 90 - FlowDirection
-      const flowDir = z.wind_direction + 180;
+      // User requested to match Zone Details direction (which treats direction as "TO")
+      const flowDir = z.wind_direction;
       const mathAngleDeg = 90 - flowDir;
       const rad = (mathAngleDeg * Math.PI) / 180;
       

@@ -42,6 +42,16 @@ export default function RegionPage() {
   const [selectedZone, setSelectedZone] = useState<ZoneDetailsDTO | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<number | null>(null);
 
+  const globalMinAlt = useMemo(() => {
+    if (!zones.length) return 0;
+    return Math.min(...zones.map(z => z.min_alt));
+  }, [zones]);
+
+  const globalMaxAlt = useMemo(() => {
+    if (!zones.length) return 500;
+    return Math.max(...zones.map(z => z.max_alt));
+  }, [zones]);
+
   const [selectedTurbine, setSelectedTurbine] = useState<number>(1);
   const [powerRows, setPowerRows] = useState<any[]>([]);
 
@@ -370,7 +380,7 @@ export default function RegionPage() {
           {activeTab === "zone" && (
             <div className="panel-card">
               {!selectedZone && <p>Select a zone from the map.</p>}
-              {selectedZone && <ZoneDetails zone={selectedZone} />}
+              {selectedZone && <ZoneDetails zone={selectedZone} minDomain={globalMinAlt} maxDomain={globalMaxAlt} />}
             </div>
           )}
 
