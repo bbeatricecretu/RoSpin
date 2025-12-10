@@ -1,85 +1,132 @@
-// CompassBarChart.tsx
-import React from "react";
+import React, { useMemo } from "react";
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis, Tooltip } from "recharts";
 
 type Rose = {
   N: number; NE: number; E: number; SE: number;
   S: number; SW: number; W: number; NW: number;
 };
 
-function getColor(value: number) {
-  if (value <= 1) return "#d8f3dc";
-  if (value <= 3) return "#95d5b2";
-  if (value <= 5) return "#52b788";
-  if (value <= 7) return "#2d6a4f";
-  return "#1b4332";
-}
+// Custom tooltip component
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        backgroundColor: "white",
+        padding: "8px 12px",
+        border: "2px solid #2d6a4f",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+      }}>
+        <p style={{ 
+          margin: 0, 
+          fontWeight: 600,
+          color: "#2d6a4f",
+          fontSize: "14px"
+        }}>
+          {payload[0].payload.direction}
+        </p>
+        <p style={{ 
+          margin: "4px 0 0 0",
+          color: "#256d57",
+          fontSize: "13px"
+        }}>
+          {payload[0].value.toFixed(2)} m/s
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
-export default function CompassBarChart({ data }: { data: Rose }) {
-  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-  const max = Math.max(...dirs.map((d) => data[d] || 0), 1);
+export default function WindRoseChart({ data }: { data: Rose }) {
+  // Transform wind rose data into format needed for radar chart
+  const chartData = useMemo(() => [
+    { direction: "N", speed: data.N || 0 },
+    { direction: "NE", speed: data.NE || 0 },
+    { direction: "E", speed: data.E || 0 },
+    { direction: "SE", speed: data.SE || 0 },
+    { direction: "S", speed: data.S || 0 },
+    { direction: "SW", speed: data.SW || 0 },
+    { direction: "W", speed: data.W || 0 },
+    { direction: "NW", speed: data.NW || 0 },
+  ], [data]);
 
-  const size = 350;
-  const center = size / 2;
-
-  const radius = 85;     // distance to start drawing bars
-  const barMax = 60;     // maximum bar length
-
-  const angle = {
-    N: -90, NE: -45, E: 0, SE: 45,
-    S: 90, SW: 135, W: 180, NW: -135,
-  };
+  const maxSpeed = Math.max(...chartData.map(d => d.speed), 1);
 
   return (
-    <svg width={size} height={size} style={{ display: "block", margin: "0 auto" }}>
-      {/* Background compass lines */}
-      <circle cx={center} cy={center} r={radius + barMax} fill="#f8f9fa" stroke="#e9ecef" />
+    <div style={{ 
+      width: "100%", 
+      display: "flex", 
+      flexDirection: "column", 
+      alignItems: "center",
+      padding: "20px 0"
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: "400px",
+        height: "400px"
+      }}>
+        <RadarChart
+          width={400}
+          height={400}
+          data={chartData}
+          margin={{ top: 20, right: 50, bottom: 20, left: 50 }}
+        >
+          <defs>
+            <linearGradient id="windGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2d6a4f" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#52b788" stopOpacity={0.3} />
+            </linearGradient>
+          </defs>
+          
+          <PolarGrid 
+            stroke="#cbe8df" 
+            strokeWidth={1.5}
+          />
+          
+          <PolarAngleAxis 
+            dataKey="direction" 
+            tick={{ 
+              fill: "#256d57", 
+              fontSize: 14,
+              fontWeight: 600
+            }}
+          />
+          
+          <PolarRadiusAxis 
+            angle={90} 
+            domain={[0, Math.ceil(maxSpeed)]}
+            tick={{ fill: "#6c757d", fontSize: 11 }}
+            tickCount={5}
+          />
+          
+          <Tooltip content={<CustomTooltip />} />
+          
+          <Radar
+            name="Wind Speed"
+            dataKey="speed"
+            stroke="#2d6a4f"
+            fill="url(#windGradient)"
+            fillOpacity={0.7}
+            strokeWidth={2}
+          />
+        </RadarChart>
+      </div>
 
-      {dirs.map((d) => {
-        const v = data[d] || 0;
-        const len = (v / max) * barMax;
-        const theta = (angle[d] * Math.PI) / 180;
-
-        const x1 = center + Math.cos(theta) * radius;
-        const y1 = center + Math.sin(theta) * radius;
-
-        const x2 = center + Math.cos(theta) * (radius + len);
-        const y2 = center + Math.sin(theta) * (radius + len);
-
-        return (
-          <g key={d}>
-            <line
-              x1={x1} y1={y1}
-              x2={x2} y2={y2}
-              stroke={getColor(v)}
-              strokeWidth={10}
-              strokeLinecap="round"
-            />
-
-            {/* Label */}
-            <text
-              x={center + Math.cos(theta) * (radius + barMax + 22)}
-              y={center + Math.sin(theta) * (radius + barMax + 22)}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontSize="12"
-              fill="#333"
-            >
-              {d}
-            </text>
-
-            {/* Value */}
-            <text
-              x={x2}
-              y={y2 - 8}
-              textAnchor="middle"
-              fontSize="11"
-              fill="#555"
-            >
-              {v.toFixed(1)}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+      <div style={{
+        marginTop: "16px",
+        textAlign: "center",
+        color: "#256d57"
+      }}>
+        <div style={{ 
+          fontSize: "0.9rem", 
+          color: "#6c757d",
+          marginTop: "8px"
+        }}>
+          Wind speed in m/s by direction
+        </div>
+      </div>
+    </div>
   );
 }
+
