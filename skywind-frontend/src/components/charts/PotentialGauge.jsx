@@ -77,7 +77,7 @@ export default function PotentialGauge({ value }) {
       <div
         style={{
           position: "absolute",
-          top: "65px",
+          top: "45px",
           width: "100%",
           textAlign: "center",
         }}
