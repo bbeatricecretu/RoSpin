@@ -47,6 +47,10 @@
   color: var(--text-dark);
 }
 
+/* ============================= */
+/*          TEAM CARDS           */
+/* ============================= */
+
 .team-grid-row {
   display: flex;
   justify-content: center;
@@ -54,10 +58,7 @@
   margin-bottom: 26px;
 }
 
-.team-row-1 .team-card {
-  width: 220px;
-}
-
+.team-row-1 .team-card,
 .team-row-2 .team-card {
   width: 220px;
 }
@@ -71,11 +72,21 @@
 }
 
 .team-photo {
-  width: 95px;
-  height: 95px;
+  width: 130px;
+  height: 130px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 12px;
+  object-position: center top; 
+  display: block;
+  margin: 0 auto 12px auto;
+  background-color: #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+.photo-mada {
+  object-position: center 20%;
+}
+.photo-bea {
+  object-position: center 10%;
 }
 
 .team-card h3 {

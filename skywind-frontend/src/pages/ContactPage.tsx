@@ -20,7 +20,7 @@ export default function ContactPage() {
 
           <div className="contact-card">
             <h3>Email</h3>
-            <p>alemariasiu@yahoo.com</p>
+            <p>skywind.app.team@gmail.com</p>
           </div>
 
           <div className="contact-card">
