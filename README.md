@@ -26,7 +26,6 @@ The user begins by defining the Area of Interest (AOI) using the sidebar inputs:
 * **Grid Split:** Determines the analysis granularity (e.g., splitting the zone into a 5x5 grid).
 
 <img width="3012" height="1635" alt="Screenshot 2025-12-11 114210" src="https://github.com/user-attachments/assets/92acf85e-28ac-4d4f-b6f8-70eab4173b3f" />
-<img width="3024" height="1637" alt="Screenshot 2025-12-11 114130" src="https://github.com/user-attachments/assets/b5bff509-3199-48c7-aee4-3da0ed80f92f" />
 <img width="3061" height="1790" alt="Screenshot 2025-12-11 141746" src="https://github.com/user-attachments/assets/493cc8ae-4414-4dd5-812b-6619abe6dc34" />
 
 
@@ -38,8 +37,7 @@ Once triggered, the system divides the area into the requested grid cells. For e
 
 ### 3. Visualizing Results
 The application generates a heatmap overlay on the map, coloring zones by their suitability score. Users can click on specific grid cells to view detailed metrics and the vector path to the **Nearest Energy Accumulation Point**.
-
-![Map Visualization](https://github.com/user-attachments/assets/60be5ae7-8e48-41d2-b53b-60e43ed46eb1)
+<img width="3024" height="1637" alt="Screenshot 2025-12-11 114130" src="https://github.com/user-attachments/assets/b5bff509-3199-48c7-aee4-3da0ed80f92f" />
 
 ## ✨ Key Features
  * **Dynamic Grid Segmentation**: Users have full control over the size and resolution of the analysis area.
