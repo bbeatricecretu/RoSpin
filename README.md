@@ -25,7 +25,10 @@ The user begins by defining the Area of Interest (AOI) using the sidebar inputs:
 * **Side (km):** Defines the total width of the square zone.
 * **Grid Split:** Determines the analysis granularity (e.g., splitting the zone into a 5x5 grid).
 
-![Define Zone Input](https://github.com/user-attachments/assets/b00ac48c-0dd0-429e-92d0-bbee770534ab)
+<img width="3012" height="1635" alt="Screenshot 2025-12-11 114210" src="https://github.com/user-attachments/assets/92acf85e-28ac-4d4f-b6f8-70eab4173b3f" />
+<img width="3024" height="1637" alt="Screenshot 2025-12-11 114130" src="https://github.com/user-attachments/assets/b5bff509-3199-48c7-aee4-3da0ed80f92f" />
+<img width="3061" height="1790" alt="Screenshot 2025-12-11 141746" src="https://github.com/user-attachments/assets/493cc8ae-4414-4dd5-812b-6619abe6dc34" />
+
 
 ### 2. Automated Analysis
 Once triggered, the system divides the area into the requested grid cells. For each cell, it queries satellite data via **Google Earth Engine** to calculate:
