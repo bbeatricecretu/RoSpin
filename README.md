@@ -13,8 +13,8 @@ SkyWind is a collaborative geospatial intelligence tool designed to map optimal 
 ## 🏗 System Architecture
 The system aggregates data from multiple satellite providers, processes it via a Python backend, and renders the results on an interactive frontend map.
 
-<img width="800" height="700" alt="Untitled" src="https://github.com/user-attachments/assets/2d7922a5-528e-4617-a7c4-42d9006ce94e" />
 
+<img width="900" height="695" alt="image" src="https://github.com/user-attachments/assets/5ff48eda-3ec7-4d27-8392-9fd2e06ce20a" />
 
 
 ## ⚙️ How It Works
